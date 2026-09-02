@@ -14,9 +14,9 @@
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: Arial, sans-serif; min-height: 100vh; display: block; padding: 30px 16px 60px; position: relative; overflow-x: hidden; }
-        .bg { position: fixed; inset: 0; z-index: 0; background: linear-gradient(155deg, rgba(10,25,70,0.92) 0%, rgba(30,64,175,0.88) 45%, rgba(15,40,100,0.95) 100%), url('/bg.png') center/cover no-repeat; }
         /* Form always centered */
-        .wrap { position: relative; z-index: 1; width: 100%; max-width: 440px; margin: 0 auto; }
+        .wrap { width: 100%; max-width: 440px; margin: 0 auto; }
+        .bg { position: fixed; inset: 0; z-index: -1; background: linear-gradient(155deg, rgba(10,25,70,0.92) 0%, rgba(30,64,175,0.88) 45%, rgba(15,40,100,0.95) 100%), url('/bg.png') center/cover no-repeat; }
         .preview-label {
             color: rgba(255,255,255,0.45); font-size: 10px; font-weight: 700;
             letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px;
@@ -256,11 +256,18 @@
             <div class="form-group">
                 <div class="field-header">
                     <label><i class="fa-solid fa-lock" style="margin-right:5px;color:#2563eb;font-size:10px;"></i>Card PIN <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">(4–6 digits, optional)</span></label>
+                    @if (!string.IsNullOrWhiteSpace(Model.CardPin))
+                    {
+                        <button type="button" onclick="resetPin()" style="background:none;border:none;color:#dc2626;font-size:10px;font-weight:700;cursor:pointer;padding:0;text-decoration:underline;letter-spacing:0.3px;">Reset PIN</button>
+                    }
                 </div>
                 <input type="password" name="CardPin" value=""
                        placeholder="@(string.IsNullOrWhiteSpace(Model.CardPin) ? "Set a PIN to protect edits" : "Enter PIN to confirm changes")"
                        maxlength="6" inputmode="numeric" autocomplete="off"
-                       id="cardPinInput" oninput="this.classList.remove('pin-error'); document.getElementById('pinErrMsg').classList.remove('show');" />
+                       id="cardPinInput"
+                       oninput="this.value=this.value.replace(/[^0-9]/g,''); this.classList.remove('pin-error'); document.getElementById('pinErrMsg').classList.remove('show');"
+                       onkeypress="return /[0-9]/.test(event.key);"
+                       onpaste="var e=event; setTimeout(function(){ e.target.value=e.target.value.replace(/[^0-9]/g,''); },0);" />
                 <p class="pin-error-msg" id="pinErrMsg">⚠️ This card has a PIN — enter it to save changes.</p>
                 @if (string.IsNullOrWhiteSpace(Model.CardPin))
                 { <p class="hint">Prevents others from editing your card.</p> }
@@ -702,6 +709,29 @@
 
     // PIN validation — highlight and scroll if card has PIN but field is empty
     var cardHasPin = @(string.IsNullOrWhiteSpace(Model.CardPin) ? "false" : "true");
+    function resetPin() {
+        if (!confirm('Remove your PIN? Anyone will be able to edit your card without a PIN.')) return;
+        var form = document.querySelector('form[action="/save"]');
+        // Clear the PIN input
+        var pinInput = document.getElementById('cardPinInput');
+        pinInput.value = '';
+        pinInput.placeholder = 'PIN will be removed on save';
+        pinInput.style.borderColor = '#16a34a';
+        // Add reset flag
+        var existing = document.getElementById('pinResetFlag');
+        if (!existing) {
+            var flag = document.createElement('input');
+            flag.type = 'hidden'; flag.name = 'resetPin'; flag.value = 'true'; flag.id = 'pinResetFlag';
+            form.appendChild(flag);
+        }
+        // Show confirmation message
+        var msg = document.createElement('p');
+        msg.style.cssText = 'font-size:11px;color:#16a34a;font-weight:700;margin-top:4px;';
+        msg.textContent = '✓ PIN will be removed when you save.';
+        pinInput.parentNode.insertBefore(msg, pinInput.nextSibling);
+        // Update cardHasPin so validation doesn't block save
+        cardHasPin = false;
+    }
     function validatePin() {
         if (!cardHasPin) return true; // no existing PIN, no validation needed
         var pinInput = document.getElementById('cardPinInput');
@@ -714,9 +744,9 @@
         pinInput.focus();
         return false; // block submit
     }
-</script>
-</body>
-</html>
 
     function openPreviewModal()  { document.getElementById('previewModalOverlay').classList.add('open'); updatePreview(); }
     function closePreviewModal() { document.getElementById('previewModalOverlay').classList.remove('open'); }
+</script>
+</body>
+</html>

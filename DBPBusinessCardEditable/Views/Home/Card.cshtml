@@ -49,12 +49,42 @@
             --divider:#e8edf2; --btn-bg:#fff; --btn-border:#2563eb; --btn-text:#2563eb;
             --shadow: 0 16px 48px rgba(0,0,0,0.35);
         }
-        /* Dark mode — ONLY the page background changes, card stays white */
-        html.dark .page-bg {
-            background: linear-gradient(155deg, rgba(1,4,18,0.99) 0%, rgba(5,12,40,0.99) 50%, rgba(1,4,18,0.99) 100%), url('/bg.png') center/cover no-repeat;
+        /* Dark mode — black & white card on black page */
+        html.dark {
+            --card-bg: #111111;
+            --card-text: #f5f5f5;
+            --card-sub: #a3a3a3;
+            --card-border: #2a2a2a;
+            --info-bg: #1a1a1a;
+            --info-hover: #222222;
+            --info-icon-col: #e5e5e5;
+            --info-label: #6b6b6b;
+            --info-value: #f5f5f5;
+            --back-close: #6b6b6b;
+            --divider: #2a2a2a;
+            --btn-bg: #111111;
+            --btn-border: #e5e5e5;
+            --btn-text: #f5f5f5;
+            --shadow: 0 16px 48px rgba(0,0,0,0.8);
         }
+        html.dark .page-bg {
+            background: rgba(0,0,0,0.82);
+        }
+        html.dark .page-bg::after {
+            content: ''; position: absolute; inset: 0;
+            background: url('/bg.png') center/cover no-repeat;
+            opacity: 0.18;
+            z-index: -1;
+        }
+        html.dark .card-face { background: var(--card-bg); }
+        html.dark .card-face::before { background: linear-gradient(90deg, #333, #666, #999); }
+        html.dark h1 { color: var(--card-text); }
+        html.dark .btn-share { border-color: #e5e5e5; color: #f5f5f5; }
+        html.dark .btn-share:hover { background: #e5e5e5; color: #111; }
+        html.dark .profile-avatar { background: #1a1a1a; border-color: #333; }
+        html.dark .dbp-badge { background: #111; border-color: #333; }
         body { font-family:Arial,sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:30px 16px 60px; position:relative; overflow-y:auto; overflow-x:hidden; }
-        .page-bg { position:fixed; inset:0; z-index:0; background:linear-gradient(155deg,rgba(10,25,70,0.95) 0%,rgba(30,64,175,0.90) 45%,rgba(15,40,100,0.97) 100%),url('/bg.png') center/cover no-repeat; transition:background 0.5s; }
+        .page-bg { position:fixed; inset:0; z-index:0; background:linear-gradient(155deg,rgba(10,25,70,0.95) 0%,rgba(30,64,175,0.90) 45%,rgba(15,40,100,0.97) 100%),url('/bg.png') center/cover no-repeat; transition:background 0.5s; overflow:hidden; }
         .dark-toggle { position:relative; z-index:2; align-self:flex-end; margin-bottom:8px; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.75); border-radius:20px; padding:5px 12px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.15s; }
         .dark-toggle:hover { background:rgba(255,255,255,0.22); }
         html.dark .dark-toggle { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.1); }
@@ -63,54 +93,52 @@
         .card-scene { position:relative; z-index:1; width:100%; max-width:380px; perspective:1000px; }
         .card-flipper { width:100%; position:relative; transform-style:preserve-3d; transition:transform 0.55s cubic-bezier(0.4,0.2,0.2,1); }
         .card-flipper.flipped { transform:rotateY(180deg); }
-        .card-face { width:100%; backface-visibility:hidden; -webkit-backface-visibility:hidden; background:#fff; border-radius:20px; box-shadow:0 16px 48px rgba(0,0,0,0.35); overflow:hidden; }
+        .card-face { width:100%; backface-visibility:hidden; -webkit-backface-visibility:hidden; background:var(--card-bg); border-radius:20px; box-shadow:var(--shadow); overflow:hidden; transition:background 0.3s, box-shadow 0.3s; }
         .card-face::before { content:''; display:block; height:5px; background:linear-gradient(90deg,#1e3a8a,#2563eb,#60a5fa); position:absolute; bottom:0; left:0; right:0; border-radius:0 0 20px 20px; }
         .card-front { padding:28px 20px 32px; text-align:center; position:relative; }
         .card-back  { position:absolute; top:0; left:0; padding:22px 20px 32px; transform:rotateY(180deg); text-align:left; }
         .profile-header { text-align:center; margin-bottom:14px; }
         .profile-photo-wrap { position:relative; display:inline-block; }
-        .profile-photo { width:90px; height:90px; border-radius:50%; object-fit:cover; border:3px solid #e5e7eb; box-shadow:0 4px 16px rgba(0,0,0,0.12); display:block; }
-        .profile-avatar { width:90px; height:90px; border-radius:50%; background:#eff6ff; border:3px solid #bfdbfe; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+        .profile-photo { width:90px; height:90px; border-radius:50%; object-fit:cover; border:3px solid var(--card-border); box-shadow:0 4px 16px rgba(0,0,0,0.12); display:block; }
+        .profile-avatar { width:90px; height:90px; border-radius:50%; background:var(--info-bg); border:3px solid var(--card-border); display:flex; align-items:center; justify-content:center; overflow:hidden; }
         .profile-avatar img { width:100%; height:100%; object-fit:cover; display:block; border-radius:50%; }
-        .profile-avatar i { font-size:38px; color:#93c5fd; }
-        .dbp-badge { position:absolute; bottom:2px; right:-4px; width:30px; height:30px; border-radius:50%; background:#fff; border:2px solid #e5e7eb; box-shadow:0 2px 6px rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+        .profile-avatar i { font-size:38px; color:var(--info-icon-col); }
+        .dbp-badge { position:absolute; bottom:2px; right:-4px; width:30px; height:30px; border-radius:50%; background:var(--card-bg); border:2px solid var(--card-border); box-shadow:0 2px 6px rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:center; overflow:hidden; }
         .dbp-badge img { width:26px; height:26px; object-fit:contain; }
-        h1 { color:#0f172a; font-size:21px; font-weight:800; margin-bottom:2px; }
-        .full-name-sub { color:#94a3b8; font-size:12px; margin-bottom:4px; }
-        .job-title  { color:#334155; font-size:13px; font-weight:500; margin-bottom:2px; }
-        .dept-name  { color:#64748b; font-size:12px; font-weight:500; margin-bottom:2px; }
-        .org-name   { color:#64748b; font-size:12px; }
-        .office-link { display:inline-flex; align-items:center; gap:5px; color:#2563eb; font-size:12px; font-weight:600; text-decoration:none; margin-top:5px; }
+        h1 { color:var(--card-text); font-size:21px; font-weight:800; margin-bottom:2px; }
+        .full-name-sub { color:var(--card-sub); font-size:12px; margin-bottom:4px; }
+        .job-title  { color:var(--card-text); font-size:13px; font-weight:500; margin-bottom:2px; }
+        .dept-name  { color:var(--card-sub); font-size:12px; font-weight:500; margin-bottom:2px; }
+        .org-name   { color:var(--card-sub); font-size:12px; }
+        .office-link { display:inline-flex; align-items:center; gap:5px; color:var(--info-icon-col); font-size:12px; font-weight:600; text-decoration:none; margin-top:5px; }
         .office-link:hover { text-decoration:underline; }
-        .divider { height:1px; background:#e8edf2; margin:8px 0; }
-        .btn { display:flex; align-items:center; justify-content:center; gap:9px; padding:11px 14px; margin:4px 0; border-radius:10px; text-decoration:none; font-size:13px; font-weight:700; background:#fff; border:1.5px solid #2563eb; color:#2563eb; transition:background 0.16s,color 0.16s,box-shadow 0.16s,transform 0.1s; cursor:pointer; width:100%; }
+        .divider { height:1px; background:var(--divider); margin:8px 0; }
+        .btn { display:flex; align-items:center; justify-content:center; gap:9px; padding:11px 14px; margin:4px 0; border-radius:10px; text-decoration:none; font-size:13px; font-weight:700; background:var(--btn-bg); border:1.5px solid var(--btn-border); color:var(--btn-text); transition:background 0.16s,color 0.16s,box-shadow 0.16s,transform 0.1s; cursor:pointer; width:100%; }
         .btn i { font-size:14px; width:16px; text-align:center; flex-shrink:0; }
-        .btn:hover { background:#2563eb; color:#fff; box-shadow:0 4px 16px rgba(37,99,235,0.3); }
+        .btn:hover { background:var(--btn-border); color:var(--card-bg); }
         .btn:active { transform:scale(0.97); }
-        .btn-share { border-color:#1e3a8a; color:#1e3a8a; }
-        .btn-share:hover { background:#1e3a8a; color:#fff; }
-        .back-header { display:flex; align-items:center; gap:10px; margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid #e8edf2; }
+        .btn-share { border-color:var(--btn-border); color:var(--btn-text); opacity:0.8; }
+        .btn-share:hover { background:var(--btn-border); color:var(--card-bg); opacity:1; }
+        .back-header { display:flex; align-items:center; gap:10px; margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid var(--divider); }
         .back-logo { width:32px; height:32px; object-fit:contain; }
-        .back-header-text strong { display:block; color:#0f172a; font-size:14px; font-weight:800; }
-        .back-header-text span   { color:#94a3b8; font-size:11px; }
-        .back-close { margin-left:auto; background:none; border:none; color:#94a3b8; font-size:17px; cursor:pointer; padding:4px; line-height:1; }
-        .back-close:hover { color:#334155; }
-        .info-hint { font-size:11px; color:#94a3b8; margin-bottom:12px; display:flex; align-items:center; gap:5px; }
-        .info-row { display:flex; align-items:flex-start; gap:10px; padding:9px 10px; border-radius:9px; margin-bottom:5px; cursor:pointer; border:1px solid #e8edf2; transition:background 0.14s,border-color 0.14s; }
-        .info-row:hover  { background:#f0f7ff; border-color:#2563eb; }
-        .info-row:active { background:#eff6ff; }
-        .info-icon { width:30px; height:30px; border-radius:7px; background:#eff6ff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        .info-icon i { font-size:12px; color:#2563eb; }
+        .back-header-text strong { display:block; color:var(--card-text); font-size:14px; font-weight:800; }
+        .back-header-text span   { color:var(--info-label); font-size:11px; }
+        .back-close { margin-left:auto; background:none; border:none; color:var(--back-close); font-size:17px; cursor:pointer; padding:4px; line-height:1; }
+        .back-close:hover { color:var(--card-text); }
+        .info-hint { font-size:11px; color:var(--info-label); margin-bottom:12px; display:flex; align-items:center; gap:5px; }
+        .info-row { display:flex; align-items:flex-start; gap:10px; padding:9px 10px; border-radius:9px; margin-bottom:5px; cursor:pointer; border:1px solid var(--card-border); transition:background 0.14s,border-color 0.14s; }
+        .info-row:hover  { background:var(--info-hover); border-color:var(--info-icon-col); }
+        .info-row:active { background:var(--info-bg); }
+        .info-icon { width:30px; height:30px; border-radius:7px; background:var(--info-bg); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .info-icon i { font-size:12px; color:var(--info-icon-col); }
         .info-content { flex:1; min-width:0; }
-        .info-label { font-size:10px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:1px; }
-        .info-value { font-size:13px; color:#0f172a; font-weight:500; word-break:break-all; }
+        .info-label { font-size:10px; font-weight:700; color:var(--info-label); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:1px; }
+        .info-value { font-size:13px; color:var(--info-value); font-weight:500; word-break:break-all; }
         .copy-tick { font-size:12px; color:#16a34a; opacity:0; transition:opacity 0.2s; flex-shrink:0; align-self:center; }
         .copy-tick.show { opacity:1; }
-        .back-actions { margin-top:14px; padding-top:12px; border-top:1px solid #e8edf2; }
-        .last-updated { text-align:center; font-size:10px; color:#94a3b8; margin-top:6px; }
+        .back-actions { margin-top:14px; padding-top:12px; border-top:1px solid var(--divider); }
+        .last-updated { text-align:center; font-size:10px; color:var(--info-label); margin-top:6px; }
         .last-updated i { margin-right:4px; opacity:0.6; }
-        .dbp-badge { position:absolute; bottom:2px; right:-4px; width:30px; height:30px; border-radius:50%; background:#fff; border:2px solid #e5e7eb; box-shadow:0 2px 6px rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:center; overflow:hidden; }
-        .dbp-badge img { width:26px; height:26px; object-fit:contain; }
         @@media (max-width:480px) { body { padding:20px 12px 50px; } h1 { font-size:19px; } }
     </style>
 </head>
@@ -184,10 +212,10 @@
     <button class="btn btn-share" onclick="shareCard(); event.stopPropagation();" id="shareBtn">
         <i class="fa-solid fa-share-nodes"></i> Share This Card
     </button>
-    <a class="btn" style="border-color:#e5e7eb;color:#94a3b8;margin-top:2px;font-size:12px;"
-       href="/QR/Generate/@Model.EmpId" target="_blank" rel="noopener" onclick="event.stopPropagation()">
+    <button class="btn" style="border-color:#e5e7eb;color:#94a3b8;margin-top:2px;font-size:12px;"
+            onclick="openQrModal(); event.stopPropagation();">
         <i class="fa-solid fa-qrcode"></i> View My QR Code
-    </a>
+    </button>
 </div><!-- /front -->
 
 <!-- BACK -->
@@ -317,6 +345,21 @@
 </div>
 </div>
 
+<!-- QR Modal — same page, no new tab, no EmpId in URL -->
+<div id="qrModal" onclick="closeQrModal()" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div onclick="event.stopPropagation()" style="background:#fff;border-radius:20px;padding:24px 20px 20px;max-width:300px;width:90%;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+        <button onclick="closeQrModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:18px;color:#94a3b8;cursor:pointer;line-height:1;"><i class="fa-solid fa-xmark"></i></button>
+        <p style="font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#2563eb;margin-bottom:12px;"><i class="fa-solid fa-qrcode" style="margin-right:5px;"></i>My QR Code</p>
+        <div style="background:#fff;border-radius:12px;padding:10px;display:inline-block;border:2px solid #e5e7eb;">
+            <img src="/QR/Generate/@Model.EmpId" alt="QR Code" style="width:200px;height:200px;display:block;" />
+        </div>
+        <p style="font-size:11px;color:#94a3b8;margin-top:10px;">Scan to open this card</p>
+        <button onclick="downloadQr()" style="margin-top:12px;width:100%;padding:10px;border:1.5px solid #2563eb;border-radius:9px;background:#fff;color:#2563eb;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;">
+            <i class="fa-solid fa-download"></i> Save QR Code
+        </button>
+    </div>
+</div>
+
 <script>
     var cardUrl  = '@Html.Raw(cardUrl)';
     var cardName = '@Html.Raw(hasNickname ? Model.PreferredName : Model.Name)';
@@ -383,6 +426,26 @@
             tick.classList.add('show');
             setTimeout(function() { tick.classList.remove('show'); }, 2000);
         });
+    }
+
+    function openQrModal() {
+        var m = document.getElementById('qrModal');
+        m.style.display = 'flex';
+    }
+    function closeQrModal() {
+        document.getElementById('qrModal').style.display = 'none';
+    }
+    function downloadQr() {
+        fetch('/QR/Generate/@Model.EmpId')
+            .then(function(r) { return r.blob(); })
+            .then(function(blob) {
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = '@(Model.ShowName ? Model.Name.Replace(" ","-") : Model.EmpId)-QR.png';
+                document.body.appendChild(a); a.click();
+                document.body.removeChild(a); URL.revokeObjectURL(url);
+            });
     }
 
     function shareCard() {

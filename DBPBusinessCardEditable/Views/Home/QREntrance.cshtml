@@ -3,6 +3,10 @@
     Layout = null;
     string empId   = Model.EmpId;
     string cardUrl = $"{Context.Request.Scheme}://{Context.Request.Host}/card/{Model.CardToken}";
+    var stats = Model.ViewHistory != null ? Model.ViewHistory : new System.Collections.Generic.List<DBPBusinessCardEditable.Models.DailyView>();
+    int todayViews = stats.Where(v => v.Date == DateTime.UtcNow.ToString("yyyy-MM-dd")).Sum(v => v.Count);
+    int weekViews  = stats.Where(v => string.Compare(v.Date, DateTime.UtcNow.AddDays(-7).ToString("yyyy-MM-dd"), StringComparison.Ordinal) >= 0).Sum(v => v.Count);
+    int totalViews = Model.TotalViews;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -14,279 +18,133 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            font-family: Arial, sans-serif;
-            min-height: 100vh;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            padding: 36px 20px 50px;
-            overflow-y: auto; overflow-x: hidden;
-            position: relative;
-        }
-
-        .bg {
-            position: fixed; inset: 0; z-index: 0;
-            background:
-                linear-gradient(155deg,
-                    rgba(10,25,70,0.93) 0%,
-                    rgba(30,64,175,0.88) 45%,
-                    rgba(15,40,100,0.96) 100%),
-                url('/bg.png') center/cover no-repeat;
-        }
-
-        .wrap {
-            position: relative; z-index: 1;
-            width: 100%; max-width: 400px;
-            text-align: center;
-        }
-
-        /* ── Brand ── */
-        .brand {
-            display: flex; align-items: center; justify-content: center;
-            gap: 12px; margin-bottom: 24px;
-        }
+        body { font-family: Arial, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 36px 20px 50px; overflow-y: auto; overflow-x: hidden; position: relative; }
+        .bg { position: fixed; inset: 0; z-index: 0; background: linear-gradient(155deg, rgba(10,25,70,0.93) 0%, rgba(30,64,175,0.88) 45%, rgba(15,40,100,0.96) 100%), url('/bg.png') center/cover no-repeat; }
+        .wrap { position: relative; z-index: 1; width: 100%; max-width: 400px; text-align: center; }
+        .brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 24px; }
         .brand img { height: 42px; object-fit: contain; }
-        .brand-text { color: #f1f5f9; font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
-
-        /* ── Profile ── */
+        .brand-text { color: #f1f5f9; font-size: 15px; font-weight: 700; }
         .profile { margin-bottom: 24px; }
-
-        .profile-photo-wrap {
-            margin-bottom: 12px;
-        }
-        .profile-photo, .profile-photo-placeholder {
-            width: 80px; height: 80px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid rgba(255,255,255,0.35);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-            display: block; margin: 0 auto;
-        }
-        .profile-photo-placeholder {
-            background: rgba(37,99,235,0.4);
-            display: flex; align-items: center; justify-content: center;
-            overflow: hidden;
-        }
+        .profile-photo, .profile-photo-placeholder { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.35); box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: block; margin: 0 auto; }
+        .profile-photo-placeholder { background: rgba(37,99,235,0.4); display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .profile-photo-placeholder i { font-size: 32px; color: rgba(255,255,255,0.6); }
         .profile-photo-placeholder img { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-        .profile-name {
-            color: #ffffff;
-            font-size: 20px; font-weight: 800;
-            letter-spacing: 0.3px;
-            margin-bottom: 6px;
-            text-shadow: 0 1px 6px rgba(0,0,0,0.4);
-        }
-
-        /* Title pill — readable against dark bg */
-        .profile-title-pill {
-            display: inline-block;
-            background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: #f1f5f9;
-            font-size: 12px; font-weight: 600;
-            padding: 4px 12px; border-radius: 20px;
-            margin-bottom: 5px;
-            backdrop-filter: blur(4px);
-        }
-
-        .profile-empid {
-            color: rgba(255,255,255,0.5);
-            font-size: 11px; letter-spacing: 1.5px;
-            font-weight: 600;
-        }
-
-        /* ── QR Card ── */
-        .qr-card {
-            background: rgba(255,255,255,0.07);
-            border: 1px solid rgba(255,255,255,0.14);
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 16px;
-            backdrop-filter: blur(8px);
-        }
-
-        .qr-frame {
-            background: #fff;
-            border-radius: 14px;
-            padding: 14px;
-            display: inline-block;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-            margin-bottom: 14px;
-            animation: pulse 3s ease-in-out infinite;
-        }
-        @@keyframes pulse {
-            0%,100% { box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
-            50%     { box-shadow: 0 8px 30px rgba(0,0,0,0.4), 0 0 0 6px rgba(37,99,235,0.2); }
-        }
+        .profile-name { color: #fff; font-size: 20px; font-weight: 800; margin: 10px 0 5px; text-shadow: 0 1px 6px rgba(0,0,0,0.4); }
+        .profile-title-pill { display: inline-block; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); color: #f1f5f9; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px; backdrop-filter: blur(4px); }
+        .qr-card { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); border-radius: 20px; padding: 20px; margin-bottom: 16px; backdrop-filter: blur(8px); }
+        .qr-frame { background: #fff; border-radius: 14px; padding: 14px; display: inline-block; box-shadow: 0 8px 30px rgba(0,0,0,0.4); margin-bottom: 14px; animation: pulse 3s ease-in-out infinite; }
+        @@keyframes pulse { 0%,100% { box-shadow: 0 8px 30px rgba(0,0,0,0.4); } 50% { box-shadow: 0 8px 30px rgba(0,0,0,0.4), 0 0 0 6px rgba(37,99,235,0.2); } }
         .qr-frame img { display: block; width: 200px; height: 200px; border-radius: 4px; }
-
-        .qr-instruction {
-            color: rgba(255,255,255,0.9);
-            font-size: 13px; font-weight: 700;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
-        }
-        .qr-sub {
-            color: rgba(255,255,255,0.45);
-            font-size: 11px;
-        }
-
-        /* ── Action buttons ── */
-        .link-section {
-            margin-bottom: 20px;
-        }
-
-        .divider-row {
-            display: flex; align-items: center; gap: 10px;
-            margin: 0 auto 14px; max-width: 340px;
-        }
-        .divider-row::before, .divider-row::after {
-            content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.12);
-        }
+        .qr-instruction { color: rgba(255,255,255,0.9); font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+        .qr-sub { color: rgba(255,255,255,0.45); font-size: 11px; }
+        .divider-row { display: flex; align-items: center; gap: 10px; margin: 0 auto 14px; max-width: 340px; }
+        .divider-row::before, .divider-row::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.12); }
         .divider-row span { color: rgba(255,255,255,0.35); font-size: 10px; letter-spacing: 2px; white-space: nowrap; }
-
-        /* Two side-by-side buttons: Open Card + Copy Link */
-        .access-row {
-            display: flex; gap: 10px; margin-bottom: 0;
-        }
-
-        .btn {
-            display: flex; align-items: center; justify-content: center;
-            gap: 8px; padding: 13px 16px;
-            border-radius: 12px; font-size: 14px; font-weight: 700;
-            cursor: pointer; border: none; text-decoration: none;
-            transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
-            flex: 1;
-        }
+        .link-section { margin-bottom: 20px; }
+        .access-row { display: flex; gap: 10px; }
+        .btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 13px 16px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; transition: background 0.15s, transform 0.1s; flex: 1; }
         .btn:active { transform: scale(0.97); }
         .btn i { font-size: 14px; }
-
-        /* "Open Card" — solid blue — primary action for laptop/web */
-        .btn-open {
-            background: #2563eb; color: #fff;
-            box-shadow: 0 4px 14px rgba(37,99,235,0.4);
-        }
+        .btn-open { background: #2563eb; color: #fff; box-shadow: 0 4px 14px rgba(37,99,235,0.4); }
         .btn-open:hover { background: #1d4ed8; }
-
-        /* "Copy Link" — glass outline */
-        .btn-copy {
-            background: rgba(255,255,255,0.1);
-            border: 1.5px solid rgba(255,255,255,0.2);
-            color: #f1f5f9;
-        }
+        .btn-copy { background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.2); color: #f1f5f9; }
         .btn-copy:hover { background: rgba(255,255,255,0.18); }
-
-        /* ── Owner actions ── */
-        .owner-row {
-            display: flex; gap: 10px;
-        }
-        .btn-edit {
-            background: rgba(255,255,255,0.08);
-            border: 1.5px solid rgba(255,255,255,0.2);
-            color: #f1f5f9; flex: 1;
-        }
+        .owner-row { display: flex; gap: 10px; }
+        .btn-edit { background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.2); color: #f1f5f9; flex: 1; }
         .btn-edit:hover { background: rgba(255,255,255,0.15); }
-
-        .btn-reset {
-            background: transparent;
-            border: 1.5px solid rgba(255,255,255,0.12);
-            color: rgba(255,255,255,0.4);
-            font-size: 13px; flex: 1;
-        }
+        .btn-reset { background: transparent; border: 1.5px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.4); font-size: 13px; flex: 1; }
         .btn-reset:hover { border-color: rgba(239,68,68,0.5); color: #fca5a5; }
-
-        /* Save QR button */
-        .btn-save-qr {
-            display: flex; align-items: center; justify-content: center;
-            gap: 8px; padding: 11px 16px;
-            border-radius: 11px; font-size: 13px; font-weight: 700;
-            cursor: pointer; border: 1.5px solid rgba(255,255,255,0.2);
-            background: rgba(255,255,255,0.08); color: #f1f5f9;
-            transition: background 0.15s, transform 0.1s;
-        }
+        .btn-save-qr { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border-radius: 11px; font-size: 13px; font-weight: 700; cursor: pointer; border: 1.5px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: #f1f5f9; transition: background 0.15s, transform 0.1s; }
         .btn-save-qr:hover { background: rgba(255,255,255,0.16); }
         .btn-save-qr:active { transform: scale(0.97); }
-        .btn-save-qr i { font-size: 14px; }
-
-        /* ── Share via section ── */
         .share-section { margin-bottom: 20px; }
         .share-row { display: flex; gap: 10px; }
-        .btn-teams {
-            background: rgba(98,100,167,0.25); border: 1.5px solid rgba(98,100,167,0.5);
-            color: #a5b4fc; flex: 1;
-        }
+        .btn-teams { background: rgba(98,100,167,0.25); border: 1.5px solid rgba(98,100,167,0.5); color: #a5b4fc; flex: 1; }
         .btn-teams:hover { background: rgba(98,100,167,0.45); }
-        .btn-outlook {
-            background: rgba(0,120,212,0.2); border: 1.5px solid rgba(0,120,212,0.45);
-            color: #93c5fd; flex: 1;
-        }
+        .btn-outlook { background: rgba(0,120,212,0.2); border: 1.5px solid rgba(0,120,212,0.45); color: #93c5fd; flex: 1; }
         .btn-outlook:hover { background: rgba(0,120,212,0.38); }
+
+        /* ── Stats Panel (inline slide-in) ── */
+        .stats-panel {
+            display: none;
+            position: fixed; inset: 0; z-index: 50;
+            background: linear-gradient(155deg, rgba(10,25,70,0.97) 0%, rgba(30,64,175,0.95) 45%, rgba(15,40,100,0.99) 100%);
+            overflow-y: auto; padding: 24px 20px 60px;
+            animation: fadeIn 0.25s ease;
+        }
+        .stats-panel.open { display: block; }
+        @@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .stats-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; max-width: 440px; margin-left: auto; margin-right: auto; }
+        .stats-header h2 { color: #f1f5f9; font-size: 17px; font-weight: 800; }
+        .stats-close { background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.2); color: #f1f5f9; border-radius: 10px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .stats-close:hover { background: rgba(255,255,255,0.2); }
+        .stats-body { max-width: 440px; margin: 0 auto; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .stat-box { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 14px; text-align: center; }
+        .stat-box.total { grid-column: 1/-1; background: rgba(37,99,235,0.2); border-color: rgba(37,99,235,0.4); }
+        .stat-num { font-size: 32px; font-weight: 800; color: #60a5fa; line-height: 1; }
+        .stat-box.total .stat-num { font-size: 44px; }
+        .stat-lbl { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stats-section-title { font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: #60a5fa; margin-bottom: 12px; }
+        .chart-wrap { margin-bottom: 20px; }
+        .chart-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .chart-date { font-size: 10px; color: rgba(255,255,255,0.4); width: 52px; flex-shrink: 0; text-align: right; }
+        .chart-track { flex: 1; background: rgba(255,255,255,0.08); border-radius: 4px; height: 12px; overflow: hidden; }
+        .chart-fill { height: 100%; background: linear-gradient(90deg, #2563eb, #60a5fa); border-radius: 4px; }
+        .chart-count { font-size: 10px; color: #60a5fa; font-weight: 700; width: 22px; text-align: right; flex-shrink: 0; }
+        .audit-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 16px; }
+        .audit-row { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.07); align-items: flex-start; }
+        .audit-row:last-child { border-bottom: none; }
+        .audit-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+        .audit-dot.created    { background: #22c55e; }
+        .audit-dot.updated    { background: #3b82f6; }
+        .audit-dot.reset      { background: #ef4444; }
+        .audit-action { font-size: 12px; font-weight: 700; color: #f1f5f9; }
+        .audit-detail { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+        .audit-time   { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 2px; }
+        .empty { text-align: center; color: rgba(255,255,255,0.3); font-size: 13px; padding: 20px 0; }
     </style>
 </head>
 <body>
-
 <div class="bg"></div>
 
 <div class="wrap">
-
     <!-- Brand -->
     <div class="brand">
         <img src="/dbp-logo.png" alt="DBP" />
         <span class="brand-text">Digital Business Card</span>
     </div>
 
-    <!-- Employee Profile -->
+    <!-- Profile — NO EmpId shown -->
     <div class="profile">
-        <div class="profile-photo-wrap">
+        <div>
             @if (!string.IsNullOrWhiteSpace(Model.Photo) && Model.Photo.StartsWith("data:"))
-            {
-                <img src="@Model.Photo" alt="@Model.Name" class="profile-photo" />
-            }
+            { <img src="@Model.Photo" alt="@Model.Name" class="profile-photo" /> }
             else if (Model.Photo == "avatar:male")
-            {
-                <div class="profile-photo-placeholder">
-                    <img src="/dbp-boy.png" alt="Male" style="width:100%;height:100%;object-fit:cover;" />
-                </div>
-            }
+            { <div class="profile-photo-placeholder"><img src="/dbp-boy.png" alt="Male" style="width:100%;height:100%;object-fit:cover;" /></div> }
             else if (Model.Photo == "avatar:female")
-            {
-                <div class="profile-photo-placeholder">
-                    <img src="/dbp-girl.png" alt="Female" style="width:100%;height:100%;object-fit:cover;" />
-                </div>
-            }
+            { <div class="profile-photo-placeholder"><img src="/dbp-girl.png" alt="Female" style="width:100%;height:100%;object-fit:cover;" /></div> }
             else
-            {
-                <div class="profile-photo-placeholder">
-                    <i class="fa-solid fa-user"></i>
-                </div>
-            }
+            { <div class="profile-photo-placeholder"><i class="fa-solid fa-user"></i></div> }
         </div>
-
         <p class="profile-name">@Model.Name</p>
         @if (!string.IsNullOrWhiteSpace(Model.Title))
-        {
-            <p class="profile-title-pill">@Model.Title</p>
-        }
-        <p class="profile-empid">@Model.EmpId</p>
+        { <p class="profile-title-pill">@Model.Title</p> }
     </div>
 
-    <!-- QR Code card -->
+    <!-- QR Code -->
     <div class="qr-card">
         <div class="qr-frame" id="qrFrameWrap">
             <img src="/QR/Generate/@empId" alt="QR Code" id="qrImg" crossorigin="anonymous" />
         </div>
         <p class="qr-instruction"><i class="fa-solid fa-camera" style="margin-right:6px;opacity:0.7;"></i>Scan with your phone camera</p>
         <p class="qr-sub">to view @Model.Name's digital business card</p>
-
-        <!-- Save QR button — right under the QR -->
-        <button class="btn btn-save-qr" id="saveQrBtn" onclick="saveQr()" style="margin-top:14px;width:100%;">
+        <button class="btn-save-qr" id="saveQrBtn" onclick="saveQr()" style="margin-top:14px;width:100%;">
             <i class="fa-solid fa-download"></i> Save QR Code
         </button>
     </div>
 
-    <!-- Access section: Open Card + Copy Link -->
+    <!-- Access -->
     <div class="link-section">
         <div class="divider-row"><span>OR ACCESS DIRECTLY</span></div>
         <div class="access-row">
@@ -299,7 +157,7 @@
         </div>
     </div>
 
-    <!-- Share via Teams & Outlook -->
+    <!-- Share via -->
     <div class="share-section">
         <div class="divider-row"><span>SHARE VIA</span></div>
         <div class="share-row">
@@ -312,14 +170,14 @@
         </div>
     </div>
 
-    <!-- Owner actions -->
+    <!-- Owner actions — Stats opens inline panel, no separate page -->
     <div class="owner-row">
         <a href="/setup?empId=@empId" class="btn btn-edit">
-            <i class="fa-solid fa-pen-to-square"></i> Edit Card
+            <i class="fa-solid fa-pen-to-square"></i> Edit
         </a>
-        <a href="/stats/@empId" class="btn btn-edit" style="background:rgba(255,255,255,0.05);">
+        <button class="btn btn-edit" onclick="openStats()" style="background:rgba(255,255,255,0.05);">
             <i class="fa-solid fa-chart-line"></i> Stats
-        </a>
+        </button>
         <form method="post" action="/reset/@empId" style="flex:1;display:flex;">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-reset" style="width:100%;"
@@ -328,7 +186,82 @@
             </button>
         </form>
     </div>
+</div>
 
+<!-- ── Inline Stats Panel ── -->
+<div class="stats-panel" id="statsPanel">
+    <div class="stats-header">
+        <h2><i class="fa-solid fa-chart-line" style="margin-right:8px;color:#60a5fa;"></i>Card Stats</h2>
+        <button class="stats-close" onclick="closeStats()">
+            <i class="fa-solid fa-xmark"></i> Close
+        </button>
+    </div>
+    <div class="stats-body">
+
+        <!-- View counts -->
+        <div class="stats-grid">
+            <div class="stat-box total">
+                <div class="stat-num">@totalViews</div>
+                <div class="stat-lbl">Total Views</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num">@todayViews</div>
+                <div class="stat-lbl">Today</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num">@weekViews</div>
+                <div class="stat-lbl">Last 7 Days</div>
+            </div>
+        </div>
+
+        <!-- Bar chart -->
+        @if (Model.ViewHistory != null && Model.ViewHistory.Count > 0)
+        {
+            <p class="stats-section-title">Daily Views (Last 14 Days)</p>
+            var recent = Model.ViewHistory.OrderByDescending(v => v.Date).Take(14).Reverse().ToList();
+            var maxCount = recent.Max(v => v.Count);
+            <div class="chart-wrap">
+                @foreach (var day in recent)
+                {
+                    var pct = maxCount > 0 ? (int)((double)day.Count / maxCount * 100) : 0;
+                    var label = DateTime.TryParse(day.Date, out var dt) ? dt.ToString("MMM d") : day.Date;
+                    <div class="chart-row">
+                        <span class="chart-date">@label</span>
+                        <div class="chart-track"><div class="chart-fill" style="width:@(pct)%"></div></div>
+                        <span class="chart-count">@day.Count</span>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Audit log -->
+        <p class="stats-section-title" style="margin-top:8px;">Audit Log</p>
+        <div class="audit-card">
+            @if (Model.AuditLog == null || !Model.AuditLog.Any())
+            {
+                <p class="empty">No activity yet.</p>
+            }
+            else
+            {
+                @foreach (var entry in Model.AuditLog)
+                {
+                    var dotClass = entry.Action?.ToLower() switch {
+                        "created"  => "created",
+                        "reset"    => "reset",
+                        _          => "updated"
+                    };
+                    <div class="audit-row">
+                        <div class="audit-dot @dotClass"></div>
+                        <div>
+                            <p class="audit-action">@entry.Action</p>
+                            <p class="audit-detail">@entry.Detail</p>
+                            <p class="audit-time">@entry.Timestamp.ToString("MMM d, yyyy h:mm tt") UTC</p>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
 </div>
 
 <script>
@@ -336,41 +269,27 @@
     var empId   = '@empId';
     var empName = '@Model.Name';
 
-    // Teams deep link — opens a new chat with the card URL pre-filled
+    // Teams & Outlook
     (function() {
-        var msg  = encodeURIComponent('Hi! Here is my DBP Digital Business Card: ' + cardUrl);
-        document.getElementById('teamsBtn').href =
-            'https://teams.microsoft.com/l/chat/0/0?message=' + msg;
-    })();
-
-    // Outlook mailto — pre-fills subject and body
-    (function() {
+        var msg = encodeURIComponent('Hi! Here is my DBP Digital Business Card: ' + cardUrl);
+        document.getElementById('teamsBtn').href = 'https://teams.microsoft.com/l/chat/0/0?message=' + msg;
         var subject = encodeURIComponent('My DBP Digital Business Card – ' + empName);
-        var body    = encodeURIComponent(
-            'Hi,\n\nPlease find my DBP Digital Business Card below:\n\n' +
-            cardUrl + '\n\nYou can scan the QR code or click the link to view my card.\n\nBest regards,\n' + empName
-        );
+        var body    = encodeURIComponent('Hi,\n\nHere is my DBP Digital Business Card:\n\n' + cardUrl + '\n\nBest regards,\n' + empName);
         document.getElementById('outlookBtn').href = 'mailto:?subject=' + subject + '&body=' + body;
     })();
+
+    function openStats()  { document.getElementById('statsPanel').classList.add('open'); window.scrollTo(0,0); }
+    function closeStats() { document.getElementById('statsPanel').classList.remove('open'); }
 
     function copyLink() {
         navigator.clipboard.writeText(cardUrl).then(function() {
             var btn = document.getElementById('copyBtn');
             btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
             btn.style.background = 'rgba(22,163,74,0.6)';
-            btn.style.borderColor = 'rgba(22,163,74,0.5)';
-            setTimeout(function() {
-                btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy Link';
-                btn.style.background = '';
-                btn.style.borderColor = '';
-            }, 2000);
+            setTimeout(function() { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy Link'; btn.style.background = ''; }, 2000);
         }).catch(function() {
             var el = document.createElement('textarea');
-            el.value = cardUrl;
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
+            el.value = cardUrl; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
         });
     }
 
@@ -378,38 +297,18 @@
         var btn = document.getElementById('saveQrBtn');
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
         btn.disabled = true;
-
-        // Fetch the QR image and convert to downloadable blob
         fetch('/QR/Generate/' + empId)
             .then(function(r) { return r.blob(); })
             .then(function(blob) {
                 var url = URL.createObjectURL(blob);
                 var a = document.createElement('a');
-                a.href = url;
-                a.download = empName.replace(/\s+/g, '-') + '-QR.png';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-
+                a.href = url; a.download = empName.replace(/\s+/g,'-') + '-QR.png';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
                 btn.innerHTML = '<i class="fa-solid fa-check"></i> QR Saved!';
-                btn.style.background = 'rgba(22,163,74,0.4)';
-                btn.style.borderColor = 'rgba(22,163,74,0.5)';
-                setTimeout(function() {
-                    btn.innerHTML = '<i class="fa-solid fa-download"></i> Save QR Code';
-                    btn.style.background = '';
-                    btn.style.borderColor = '';
-                    btn.disabled = false;
-                }, 2500);
+                setTimeout(function() { btn.innerHTML = '<i class="fa-solid fa-download"></i> Save QR Code'; btn.disabled = false; }, 2500);
             })
-            .catch(function() {
-                // Fallback: open QR image directly for manual save
-                window.open('/QR/Generate/' + empId, '_blank');
-                btn.innerHTML = '<i class="fa-solid fa-download"></i> Save QR Code';
-                btn.disabled = false;
-            });
+            .catch(function() { window.open('/QR/Generate/' + empId, '_blank'); btn.innerHTML = '<i class="fa-solid fa-download"></i> Save QR Code'; btn.disabled = false; });
     }
 </script>
-
 </body>
 </html>

@@ -37,7 +37,7 @@ namespace DBPBusinessCardEditable.Controllers
         // POST /save
         [HttpPost("/save")]
         [ValidateAntiForgeryToken]
-        public IActionResult Save(CardProfile model)
+        public IActionResult Save(CardProfile model, bool resetPin = false)
         {
             if (string.IsNullOrWhiteSpace(model.EmpId))
             {
@@ -65,8 +65,8 @@ namespace DBPBusinessCardEditable.Controllers
                     model.CardPin = ""; // clear submitted PIN from form
                     return View("Edit", model);
                 }
-                // Keep the existing PIN if user left it blank on edit
-                if (string.IsNullOrWhiteSpace(model.CardPin))
+                // Keep the existing PIN if user left it blank on edit (unless reset was requested)
+                if (string.IsNullOrWhiteSpace(model.CardPin) && !resetPin)
                     model.CardPin = existing.CardPin;
             }
 
