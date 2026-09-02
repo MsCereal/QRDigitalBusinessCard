@@ -2,19 +2,18 @@ using DBPBusinessCardEditable.Models;
 using DBPBusinessCardEditable.Services;
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.Collections.Generic;
 
 namespace DBPBusinessCardEditable.Controllers
 {
+    /// <summary>DBP Digital Business Card REST API</summary>
     [ApiController]
     [Route("api/cards")]
+    [Produces("application/json")]
     public class CardsApiController : ControllerBase
     {
         private readonly CardProfileService _service;
-
-        public CardsApiController(CardProfileService service)
-        {
-            _service = service;
-        }
+        public CardsApiController(CardProfileService service) => _service = service;
 
         private bool IsAuthorized()
         {
@@ -23,65 +22,63 @@ namespace DBPBusinessCardEditable.Controllers
             Request.Query.TryGetValue("apiKey", out var queryKey);
             return headerKey == expected || queryKey == expected;
         }
-
         private IActionResult Unauthorized401() =>
             StatusCode(401, new { error = "Unauthorized. Provide API key via X-Api-Key header or ?apiKey= query." });
 
-        // GET /api/cards/{empId} — public
-        [HttpGet("{empId}")]
-        public IActionResult GetCard(string empId)
+        private object CardSummary(CardProfile card, bool includeCardUrl = true)
         {
-            var card = _service.Get(empId);
-            if (card == null)
-                return NotFound(new { error = $"No card found for Employee ID: {empId}" });
-
-            return Ok(new
+            var url = $"{Request.Scheme}://{Request.Host}/card/{card.CardToken}";
+            return new
             {
                 empId       = card.EmpId,
                 name        = card.Name,
                 title       = card.Title,
                 org         = card.Org,
-                phone       = card.Phone,
-                email       = card.Email,
-                office      = card.Office,
-                github      = card.GitHub,
-                linkedin    = card.LinkedIn,
-                portfolio   = card.Portfolio,
+                phone       = card.ShowPhone  ? card.Phone     : null,
+                email       = card.ShowEmail  ? card.Email     : null,
+                office      = card.ShowOffice ? card.Office    : null,
+                github      = card.ShowGitHub ? card.GitHub    : null,
+                linkedin    = card.ShowLinkedIn ? card.LinkedIn : null,
+                portfolio   = card.ShowPortfolio ? card.Portfolio : null,
                 hasPhoto    = !string.IsNullOrEmpty(card.Photo),
-                cardUrl     = $"{Request.Scheme}://{Request.Host}/card/{card.EmpId}",
+                cardUrl     = url,
                 qrUrl       = $"{Request.Scheme}://{Request.Host}/QR/Generate/{card.EmpId}",
                 lastUpdated = card.LastUpdated
-            });
+            };
         }
 
-        // GET /api/cards — requires key
+        /// <summary>Get a single employee card by Employee ID (public).</summary>
+        /// <param name="empId">Employee ID (format: 7digits-3letters, e.g. 0000001-DBP)</param>
+        [HttpGet("{empId}")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(404)]
+        public IActionResult GetCard(string empId)
+        {
+            var card = _service.Get(empId);
+            if (card == null)
+                return NotFound(new { error = $"No card found for Employee ID: {empId}" });
+            return Ok(CardSummary(card));
+        }
+
+        /// <summary>Get all employee cards. Requires API key.</summary>
         [HttpGet]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(401)]
         public IActionResult GetAllCards()
         {
             if (!IsAuthorized()) return Unauthorized401();
-
             var cards = _service.GetAll();
-            var result = new System.Collections.Generic.List<object>();
+            var result = new List<object>();
             foreach (var card in cards)
-            {
-                result.Add(new
-                {
-                    empId       = card.EmpId,
-                    name        = card.Name,
-                    title       = card.Title,
-                    org         = card.Org,
-                    phone       = card.Phone,
-                    email       = card.Email,
-                    office      = card.Office,
-                    cardUrl     = $"{Request.Scheme}://{Request.Host}/card/{card.EmpId}",
-                    lastUpdated = card.LastUpdated
-                });
-            }
+                result.Add(CardSummary(card));
             return Ok(new { total = result.Count, cards = result });
         }
 
-        // POST /api/cards — requires key
+        /// <summary>Create or update an employee card. Requires API key.</summary>
         [HttpPost]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
         public IActionResult UpsertCard([FromBody] CardProfile model)
         {
             if (!IsAuthorized()) return Unauthorized401();
@@ -93,23 +90,27 @@ namespace DBPBusinessCardEditable.Controllers
                 return BadRequest(new { error = "name is required." });
 
             _service.Save(model);
+            var saved = _service.Get(model.EmpId.Trim());
             return Ok(new
             {
                 success = true,
                 message = $"Card for {model.EmpId} saved.",
-                cardUrl = $"{Request.Scheme}://{Request.Host}/card/{model.EmpId.Trim()}"
+                cardUrl = $"{Request.Scheme}://{Request.Host}/card/{saved.CardToken}"
             });
         }
 
-        // DELETE /api/cards/{empId} — requires key
+        /// <summary>Delete an employee card by Employee ID. Requires API key.</summary>
+        /// <param name="empId">Employee ID to delete</param>
         [HttpDelete("{empId}")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(404)]
         public IActionResult DeleteCard(string empId)
         {
             if (!IsAuthorized()) return Unauthorized401();
             var card = _service.Get(empId);
             if (card == null)
                 return NotFound(new { error = $"No card found for Employee ID: {empId}" });
-
             _service.Delete(empId);
             return Ok(new { success = true, message = $"Card for {empId} deleted." });
         }

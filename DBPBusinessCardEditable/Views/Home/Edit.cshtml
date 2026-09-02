@@ -8,278 +8,218 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DBP – Card Setup</title>
+    <title>DBP - Card Setup</title>
     <link rel="icon" type="image/png" href="/dbp-icon.png" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            font-family: Arial, sans-serif; min-height: 100vh;
-            display: flex; justify-content: center; align-items: flex-start;
-            padding: 30px 16px 60px; position: relative; overflow-x: hidden;
+        body { font-family: Arial, sans-serif; min-height: 100vh; display: block; padding: 30px 16px 60px; position: relative; overflow-x: hidden; }
+        .bg { position: fixed; inset: 0; z-index: 0; background: linear-gradient(155deg, rgba(10,25,70,0.92) 0%, rgba(30,64,175,0.88) 45%, rgba(15,40,100,0.95) 100%), url('/bg.png') center/cover no-repeat; }
+        /* Form always centered */
+        .wrap { position: relative; z-index: 1; width: 100%; max-width: 440px; margin: 0 auto; }
+        .preview-label {
+            color: rgba(255,255,255,0.45); font-size: 10px; font-weight: 700;
+            letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px;
+            text-align: center;
         }
-
-        .bg {
-            position: fixed; inset: 0; z-index: 0;
-            background:
-                linear-gradient(155deg,
-                    rgba(10,25,70,0.92) 0%, rgba(30,64,175,0.88) 45%, rgba(15,40,100,0.95) 100%),
-                url('/bg.png') center/cover no-repeat;
+        .preview-card {
+            background: #fff; border-radius: 16px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.3);
+            padding: 20px 16px 22px; text-align: center;
+            border-top: 4px solid #2563eb;
         }
-
-        .wrap { position: relative; z-index: 1; width: 100%; max-width: 440px; }
-
-        .back {
-            display: inline-flex; align-items: center; gap: 6px;
-            color: rgba(255,255,255,0.5); font-size: 13px; text-decoration: none;
-            margin-bottom: 16px; transition: color 0.15s;
+        .preview-photo-wrap { margin-bottom: 10px; }
+        .preview-photo {
+            width: 64px; height: 64px; border-radius: 50%;
+            object-fit: cover; border: 2px solid #e5e7eb;
+            display: block; margin: 0 auto;
         }
-        .back:hover { color: rgba(255,255,255,0.85); }
-
-        .card {
-            background: #fff; border-radius: 20px; padding: 28px 24px;
-            border-top: 5px solid #2563eb; box-shadow: 0 12px 40px rgba(0,0,0,0.25);
-        }
-
-        /* Photo section */
-        .photo-section { text-align: center; margin-bottom: 18px; }
-
-        .photo-section-label {
-            font-size: 10px; font-weight: 800; letter-spacing: 1.5px;
-            text-transform: uppercase; color: #2563eb; margin-bottom: 10px;
-        }
-
-        .photo-top-wrap {
-            position: relative; display: inline-block; margin-bottom: 6px;
-        }
-
-        .photo-top-circle {
-            width: 96px; height: 96px; border-radius: 50%;
-            border: 3px solid #e5e7eb; box-shadow: 0 4px 14px rgba(0,0,0,0.1);
-            background: #f8fafc; overflow: hidden;
+        .preview-avatar {
+            width: 64px; height: 64px; border-radius: 50%;
+            background: #eff6ff; border: 2px solid #bfdbfe;
             display: flex; align-items: center; justify-content: center;
+            margin: 0 auto; overflow: hidden;
         }
-        .photo-top-circle img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .photo-top-circle i { font-size: 42px; color: #bfdbfe; }
-
-        .camera-badge {
-            position: absolute; top: 2px; right: -4px;
-            width: 30px; height: 30px; border-radius: 50%;
-            background: #2563eb; border: 2.5px solid #fff;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 2px 8px rgba(37,99,235,0.4);
-            cursor: pointer; transition: background 0.15s, transform 0.12s;
+        .preview-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .preview-avatar i { font-size: 26px; color: #93c5fd; }
+        .preview-name { color: #0f172a; font-size: 15px; font-weight: 800; margin-bottom: 2px; word-break: break-word; }
+        .preview-title { color: #334155; font-size: 11px; font-weight: 500; margin-bottom: 1px; }
+        .preview-dept  { color: #64748b; font-size: 11px; margin-bottom: 1px; }
+        .preview-org   { color: #94a3b8; font-size: 11px; }
+        .preview-divider { height: 1px; background: #f1f5f9; margin: 10px 0; }
+        .preview-badge {
+            display: inline-block; background: #eff6ff; border: 1px solid #bfdbfe;
+            color: #2563eb; font-size: 10px; font-weight: 700; padding: 2px 10px;
+            border-radius: 20px; margin-bottom: 8px;
         }
-        .camera-badge:hover { background: #1d4ed8; transform: scale(1.1); }
-        .camera-badge i { font-size: 12px; color: #fff; }
-
-        .btn-reset { background: transparent; border: 1.5px solid #e5e7eb; color: #dc2626; font-size: 13px; padding: 10px; box-shadow: none; }
-        .btn-reset:hover { background: #fee2e2; border-color: #fca5a5; }
-        .avatar-section { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-
-        .avatar-or {
-            display: flex; align-items: center; gap: 8px;
-            width: 100%; max-width: 220px;
+        /* Floating preview button — always visible */
+        .preview-fab {
+            display: flex; position: fixed; bottom: 20px; right: 20px; z-index: 200;
+            background: #2563eb; color: #fff; border: none; border-radius: 50px;
+            padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 4px 16px rgba(37,99,235,0.5);
+            align-items: center; gap: 7px;
         }
-        .avatar-or::before, .avatar-or::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
-        .avatar-or span {
-            font-size: 10px; color: #9ca3af; font-weight: 700;
-            letter-spacing: 1px; text-transform: uppercase; white-space: nowrap;
+        .preview-modal-overlay {
+            display: none; position: fixed; inset: 0; z-index: 300;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+            align-items: flex-end; justify-content: center;
         }
-
-        .avatar-pick-row { display: flex; gap: 10px; }
-
-        .avatar-quick-btn {
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
-            padding: 10px 18px; border: 1.5px solid #e5e7eb; border-radius: 10px;
-            background: #fff; cursor: pointer;
-            transition: border-color 0.15s, background 0.15s;
-        }
-        .avatar-quick-btn .av-icon { font-size: 26px; color: #2563eb; line-height: 1; }
-        .avatar-quick-btn .av-label { font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
-        .avatar-quick-btn:hover { border-color: #2563eb; background: #eff6ff; }
-        .avatar-quick-btn.selected { border-color: #2563eb; background: #dbeafe; }
-
-        /* Photo options popup sheet */
-        .photo-sheet-overlay {
-            display: none; position: fixed; inset: 0; z-index: 100;
-            background: rgba(0,0,0,0.35); backdrop-filter: blur(2px);
-        }
-        .photo-sheet-overlay.open { display: flex; align-items: flex-end; justify-content: center; }
-
-        .photo-sheet {
-            background: #fff; border-radius: 20px 20px 0 0;
-            padding: 20px 20px 32px; width: 100%; max-width: 440px;
-            box-shadow: 0 -8px 30px rgba(0,0,0,0.2);
+        .preview-modal-overlay.open { display: flex; }
+        .preview-modal {
+            background: #0f172a; border-radius: 20px 20px 0 0;
+            padding: 20px 20px 36px; width: 100%; max-width: 440px;
             animation: slideUp 0.25s ease;
         }
-        @@keyframes slideUp {
-            from { transform: translateY(100%); }
-            to   { transform: translateY(0); }
+        @@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .preview-modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 14px;
         }
-
-        .photo-sheet-title {
-            text-align: center; font-size: 11px; font-weight: 800;
-            letter-spacing: 1.5px; text-transform: uppercase; color: #9ca3af;
-            margin-bottom: 16px;
-        }
-
+        .preview-modal-title { color: rgba(255,255,255,0.6); font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+        .preview-modal-close { background: none; border: none; color: rgba(255,255,255,0.5); font-size: 18px; cursor: pointer; }
+        @@media (max-width: 480px) { .preview-fab { padding: 8px 14px; font-size: 12px; } }        .back { display: inline-flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.5); font-size: 13px; text-decoration: none; margin-bottom: 16px; transition: color 0.15s; }
+        .back:hover { color: rgba(255,255,255,0.85); }
+        .card { background: #fff; border-radius: 20px; padding: 28px 24px; border-top: 5px solid #2563eb; box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
+        .photo-section { text-align: center; margin-bottom: 18px; }
+        .photo-section-label { font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: #2563eb; margin-bottom: 10px; }
+        .photo-top-wrap { position: relative; display: inline-block; margin-bottom: 6px; }
+        .photo-top-circle { width: 96px; height: 96px; border-radius: 50%; border: 3px solid #e5e7eb; box-shadow: 0 4px 14px rgba(0,0,0,0.1); background: #f8fafc; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .photo-top-circle img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .photo-top-circle i { font-size: 42px; color: #bfdbfe; }
+        .camera-badge { position: absolute; top: 2px; right: -4px; width: 30px; height: 30px; border-radius: 50%; background: #2563eb; border: 2.5px solid #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(37,99,235,0.4); cursor: pointer; transition: background 0.15s, transform 0.12s; }
+        .camera-badge:hover { background: #1d4ed8; transform: scale(1.1); }
+        .camera-badge i { font-size: 12px; color: #fff; }
+        .photo-toggle-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+        .photo-sheet-overlay { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.35); backdrop-filter: blur(2px); pointer-events: none; }
+        .photo-sheet-overlay.open { display: flex; align-items: flex-end; justify-content: center; pointer-events: all; }
+        .photo-sheet { background: #fff; border-radius: 20px 20px 0 0; padding: 20px 20px 32px; width: 100%; max-width: 440px; box-shadow: 0 -8px 30px rgba(0,0,0,0.2); animation: slideUp 0.25s ease; }
+        @@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .photo-sheet-title { text-align: center; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: #9ca3af; margin-bottom: 16px; }
         .photo-sheet-options { display: flex; flex-direction: column; gap: 10px; }
-
-        .sheet-option {
-            display: flex; align-items: center; gap: 14px;
-            padding: 13px 16px; border: 1.5px solid #e5e7eb; border-radius: 12px;
-            background: #fff; cursor: pointer; width: 100%; text-align: left;
-            transition: border-color 0.15s, background 0.15s;
-        }
+        .sheet-option { display: flex; align-items: center; gap: 14px; padding: 13px 16px; border: 1.5px solid #e5e7eb; border-radius: 12px; background: #fff; cursor: pointer; width: 100%; text-align: left; transition: border-color 0.15s, background 0.15s; }
         .sheet-option:hover { border-color: #2563eb; background: #eff6ff; }
-        .sheet-option-icon {
-            width: 40px; height: 40px; border-radius: 10px; background: #eff6ff;
-            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-        }
+        .sheet-option-icon { width: 40px; height: 40px; border-radius: 10px; background: #eff6ff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .sheet-option-icon i { font-size: 17px; color: #2563eb; }
-        .sheet-option-icon.male-icon   { background: #dbeafe; }
+        .sheet-option-icon.male-icon { background: #dbeafe; }
         .sheet-option-icon.female-icon { background: #fce7f3; }
-        .sheet-option-icon .fa-mars    { color: #2563eb; }
-        .sheet-option-icon .fa-venus   { color: #db2777; }
         .sheet-option-text { display: flex; flex-direction: column; gap: 1px; }
-        .sheet-option-text strong { font-size: 14px; color: #111827; font-weight: 700; line-height: 1.3; }
-        .sheet-option-text span   { font-size: 12px; color: #9ca3af; line-height: 1.3; }
-
-        .sheet-cancel {
-            margin-top: 10px; width: 100%; padding: 13px; border: none;
-            border-radius: 12px; background: #f3f4f6; color: #6b7280;
-            font-size: 14px; font-weight: 700; cursor: pointer;
-        }
+        .sheet-option-text strong { font-size: 14px; color: #111827; font-weight: 700; }
+        .sheet-option-text span { font-size: 12px; color: #9ca3af; }
+        .sheet-cancel { margin-top: 10px; width: 100%; padding: 13px; border: none; border-radius: 12px; background: #f3f4f6; color: #6b7280; font-size: 14px; font-weight: 700; cursor: pointer; }
         .sheet-cancel:hover { background: #e5e7eb; }
-
-        /* Form */
         h1 { text-align: center; color: #111827; font-size: 19px; font-weight: 800; margin-bottom: 3px; }
         .sub { text-align: center; color: #6b7280; font-size: 12px; }
         .divider { height: 1px; background: #e5e7eb; margin: 16px 0; }
         .section-title { font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: #2563eb; margin-bottom: 10px; }
-        .form-group { margin-bottom: 11px; }
-        label { display: block; font-size: 11px; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
-        input {
-            width: 100%; padding: 10px 13px; border: 1.5px solid #e5e7eb;
-            border-radius: 9px; font-size: 14px; color: #111827; background: #f9fafb;
-            outline: none; transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+        .form-group { margin-bottom: 12px; }
+        .field-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+        .field-header label { font-size: 11px; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 0; }
+        .toggle-wrap { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+        /* Eye-only toggle — no switch, just a clickable eye icon */
+        .eye-toggle {
+            font-size: 15px; line-height: 1; cursor: pointer; padding: 2px 4px;
+            border-radius: 5px; transition: color 0.15s, background 0.15s;
+            color: rgba(37,99,235,0.75);
+            background: none; border: none; outline: none;
         }
-        input:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        .eye-toggle.hidden { color: rgba(220,38,38,0.75); }
+        .eye-toggle:hover { background: #f1f5f9; }
+        input[type=text], input[type=tel], input[type=email], input[type=url], input[type=password] { width: 100%; padding: 10px 13px; border: 1.5px solid #e5e7eb; border-radius: 9px; font-size: 14px; color: #111827; background: #f9fafb; outline: none; transition: border-color 0.15s, background 0.15s, box-shadow 0.15s; }
+        input[type=text]:focus, input[type=tel]:focus, input[type=email]:focus, input[type=url]:focus, input[type=password]:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
         input.empid { font-weight: 800; font-size: 15px; border-color: #2563eb; color: #1d4ed8; }
         input[readonly] { background: #eff6ff; color: #1d4ed8; cursor: default; }
+        input.field-hidden { background: #fef2f2 !important; color: #fca5a5 !important; border-color: #fecaca !important; border-style: dashed !important; }
         .hint { font-size: 11px; color: #9ca3af; margin-top: 3px; }
-
+        .hide-hint { font-size: 11px; color: #fca5a5; margin-top: 3px; font-style: italic; }
         .alert { padding: 10px 14px; border-radius: 9px; font-size: 13px; font-weight: 700; margin-bottom: 14px; text-align: center; }
         .alert-error { background: #fee2e2; color: #b91c1c; }
         .alert-info  { background: #dbeafe; color: #1d4ed8; }
-
-        .btn {
-            display: flex; align-items: center; justify-content: center;
-            gap: 8px; width: 100%; padding: 13px 16px; border-radius: 11px;
-            font-size: 15px; font-weight: 800; cursor: pointer; border: none;
-            text-decoration: none; color: #fff;
-            transition: transform 0.12s, box-shadow 0.12s; margin-bottom: 8px;
-        }
+        .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 13px 16px; border-radius: 11px; font-size: 15px; font-weight: 800; cursor: pointer; border: none; text-decoration: none; color: #fff; transition: transform 0.12s, box-shadow 0.12s; margin-bottom: 8px; }
         .btn:last-child { margin-bottom: 0; }
         .btn:active { transform: scale(0.97); }
         .btn-save { background: linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow: 0 4px 14px rgba(37,99,235,0.35); }
         .btn-save:hover { box-shadow: 0 6px 20px rgba(37,99,235,0.45); }
-        .btn-reset { background: transparent; border: 1.5px solid #e5e7eb; color: #dc2626; font-size: 13px; padding: 10px; box-shadow: none; }
-        .btn-reset:hover { background: #fee2e2; border-color: #fca5a5; }
+        /* PIN error state */
+        input.pin-error { border-color: #dc2626 !important; background: #fef2f2 !important; box-shadow: 0 0 0 3px rgba(220,38,38,0.15) !important; animation: shake 0.4s ease; }
+        .pin-error-msg { font-size: 11px; color: #dc2626; font-weight: 700; margin-top: 4px; display: none; }
+        .pin-error-msg.show { display: block; }
+        @@keyframes shake {
+            0%,100% { transform: translateX(0); }
+            20%      { transform: translateX(-6px); }
+            40%      { transform: translateX(6px); }
+            60%      { transform: translateX(-4px); }
+            80%      { transform: translateX(4px); }
+        }
+        .btn-danger { background: transparent; border: 1.5px solid #e5e7eb; color: #dc2626; font-size: 13px; padding: 10px; box-shadow: none; }
+        .btn-danger:hover { background: #fee2e2; border-color: #fca5a5; }
+        .extra-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+        .extra-row-top { display: flex; gap: 8px; align-items: center; width: 100%; }
+        .extra-title-input { width: 100%; margin-top: 4px; font-size: 12px; padding: 7px 10px; border: 1.5px solid #e5e7eb; border-radius: 8px; color: #374151; background: #f9fafb; outline: none; }
+        .extra-title-input:focus { border-color: #2563eb; background: #fff; }
+        .extra-select { width: 44%; flex-shrink: 0; padding: 10px 8px; border: 1.5px solid #e5e7eb; border-radius: 9px; font-size: 13px; color: #374151; background: #f9fafb; outline: none; cursor: pointer; }
+        .extra-select:focus { border-color: #2563eb; background: #fff; }
+        .extra-value-input { flex: 1; }
+        .extra-remove-btn { width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid #fecaca; background: #fff; color: #dc2626; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; }
+        .extra-remove-btn:hover { background: #fee2e2; }
+        .btn-add-extra { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; border-radius: 9px; border: 1.5px dashed #bfdbfe; background: #f8faff; color: #2563eb; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
+        .btn-add-extra:hover { background: #eff6ff; border-color: #2563eb; }
+        .badge-active   { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 700; }
+        .badge-inactive { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 700; }
     </style>
 </head>
 <body>
-
 <div class="bg"></div>
-
 <div class="wrap">
     <a href="/" class="back">← Back to Home</a>
-
     <div class="card">
 
-        <!-- ── Photo section ── -->
         <div class="photo-section">
-            <input type="file" id="photoFileInput" accept="image/*"
-                   style="display:none;" onchange="handlePhotoFile(this)" />
-            <input type="file" id="photoCameraInput" accept="image/*" capture="user"
-                   style="display:none;" onchange="handlePhotoFile(this)" />
-
+            <input type="file" id="photoFileInput" accept="image/*" style="display:none;" onchange="handlePhotoFile(this)" />
+            <input type="file" id="photoCameraInput" accept="image/*" capture="user" style="display:none;" onchange="handlePhotoFile(this)" />
             <p class="photo-section-label">Profile Photo</p>
-
             <div class="photo-top-wrap">
                 <div class="photo-top-circle" id="photoTopCircle">
                     @if (!string.IsNullOrWhiteSpace(Model.Photo) && Model.Photo.StartsWith("data:"))
-                    {
-                        <img src="@Model.Photo" alt="Photo" />
-                    }
+                    { <img src="@Model.Photo" alt="Photo" /> }
                     else if (Model.Photo == "avatar:male")
-                    {
-                        <img src="/dbp-boy.png" alt="Male" style="width:100%;height:100%;object-fit:cover;display:block;" />
-                    }
+                    { <img src="/dbp-boy.png" alt="Male" style="width:100%;height:100%;object-fit:cover;display:block;" /> }
                     else if (Model.Photo == "avatar:female")
-                    {
-                        <img src="/dbp-girl.png" alt="Female" style="width:100%;height:100%;object-fit:cover;display:block;" />
-                    }
+                    { <img src="/dbp-girl.png" alt="Female" style="width:100%;height:100%;object-fit:cover;display:block;" /> }
                     else
-                    {
-                        <img src="/dbp-logo.png" alt="DBP" style="width:58px;height:58px;object-fit:contain;" />
-                    }
+                    { <img src="/dbp-logo.png" alt="DBP" style="width:58px;height:58px;object-fit:contain;" /> }
                 </div>
-                <!-- Camera badge → opens the sheet -->
-                <div class="camera-badge" onclick="openPhotoSheet()">
-                    <i class="fa-solid fa-camera"></i>
-                </div>
+                <div class="camera-badge" onclick="openPhotoSheet()"><i class="fa-solid fa-camera"></i></div>
+            </div>
+            <div class="photo-toggle-row">
+                <input type="hidden" name="ShowPhoto" id="hShowPhoto" value="@(Model.ShowPhoto ? "true" : "false")" />
+                <button type="button" id="eyePhoto" class="eye-toggle @(!Model.ShowPhoto ? "hidden" : "")" onclick="eyeToggle('hShowPhoto','eyePhoto',null)" title="Toggle photo visibility">
+                    <i class="fa-regular @(Model.ShowPhoto ? "fa-eye" : "fa-eye-slash")"></i>
+                </button>
+                <span style="font-size:11px;color:#9ca3af;">Show on card</span>
             </div>
         </div>
 
-        <!-- ── Photo options bottom sheet ── -->
         <div class="photo-sheet-overlay" id="photoSheetOverlay" onclick="closePhotoSheet()">
             <div class="photo-sheet" onclick="event.stopPropagation()">
                 <p class="photo-sheet-title">Choose Photo</p>
                 <div class="photo-sheet-options">
-
-                    <button type="button" class="sheet-option"
-                            onclick="document.getElementById('photoCameraInput').click(); closePhotoSheet()">
+                    <button type="button" class="sheet-option" onclick="document.getElementById('photoCameraInput').click(); closePhotoSheet()">
                         <div class="sheet-option-icon"><i class="fa-solid fa-camera"></i></div>
-                        <div class="sheet-option-text">
-                            <strong>Take Photo</strong>
-                            <span>Open camera to take a selfie</span>
-                        </div>
+                        <div class="sheet-option-text"><strong>Take Photo</strong><span>Open camera to take a selfie</span></div>
                     </button>
-
-                    <button type="button" class="sheet-option"
-                            onclick="document.getElementById('photoFileInput').click(); closePhotoSheet()">
+                    <button type="button" class="sheet-option" onclick="document.getElementById('photoFileInput').click(); closePhotoSheet()">
                         <div class="sheet-option-icon"><i class="fa-solid fa-image"></i></div>
-                        <div class="sheet-option-text">
-                            <strong>Upload Image</strong>
-                            <span>Choose a photo from your device</span>
-                        </div>
+                        <div class="sheet-option-text"><strong>Upload Image</strong><span>Choose a photo from your device</span></div>
                     </button>
-
-                    <button type="button" class="sheet-option"
-                            onclick="setAvatar('avatar:male'); closePhotoSheet()">
-                        <div class="sheet-option-icon male-icon">
-                            <img src="/dbp-boy.png" alt="Male" style="width:28px;height:28px;object-fit:contain;" />
-                        </div>
-                        <div class="sheet-option-text">
-                            <strong>Male Avatar</strong>
-                            <span>Use default male icon</span>
-                        </div>
+                    <button type="button" class="sheet-option" onclick="setAvatar('avatar:male'); closePhotoSheet()">
+                        <div class="sheet-option-icon male-icon"><img src="/dbp-boy.png" alt="Male" style="width:28px;height:28px;object-fit:contain;" /></div>
+                        <div class="sheet-option-text"><strong>Male Avatar</strong><span>Use default male icon</span></div>
                     </button>
-
-                    <button type="button" class="sheet-option"
-                            onclick="setAvatar('avatar:female'); closePhotoSheet()">
-                        <div class="sheet-option-icon female-icon">
-                            <img src="/dbp-girl.png" alt="Female" style="width:28px;height:28px;object-fit:contain;" />
-                        </div>
-                        <div class="sheet-option-text">
-                            <strong>Female Avatar</strong>
-                            <span>Use default female icon</span>
-                        </div>
+                    <button type="button" class="sheet-option" onclick="setAvatar('avatar:female'); closePhotoSheet()">
+                        <div class="sheet-option-icon female-icon"><img src="/dbp-girl.png" alt="Female" style="width:28px;height:28px;object-fit:contain;" /></div>
+                        <div class="sheet-option-text"><strong>Female Avatar</strong><span>Use default female icon</span></div>
                     </button>
-
                 </div>
                 <button type="button" class="sheet-cancel" onclick="closePhotoSheet()">Cancel</button>
             </div>
@@ -287,26 +227,18 @@
 
         <h1>@(isExisting ? "Edit My Card" : "Create My Card")</h1>
         <p class="sub">Development Bank of the Philippines</p>
-
         <div class="divider"></div>
 
-        @if (TempData["Error"] != null)
-        {
-            <div class="alert alert-error">⚠️ @TempData["Error"]</div>
-        }
-        @if (TempData["Reset"] != null)
-        {
-            <div class="alert alert-info">Card reset. Fill in your details again.</div>
-        }
+        @if (TempData["Error"] != null) { <div class="alert alert-error">⚠️ @TempData["Error"]</div> }
+        @if (TempData["Reset"] != null) { <div class="alert alert-info">Card reset. Fill in your details again.</div> }
 
         <form method="post" action="/save">
             @Html.AntiForgeryToken()
-            <!-- Photo value submitted with form -->
             <input type="hidden" name="Photo" id="photoData" value="@Model.Photo" />
 
             <p class="section-title">Employee Identity</p>
             <div class="form-group">
-                <label>Employee ID *</label>
+                <div class="field-header"><label>Employee ID *</label></div>
                 @if (isExisting)
                 {
                     <input type="text" value="@Model.EmpId" readonly class="empid" />
@@ -315,116 +247,284 @@
                 }
                 else
                 {
-                    <input type="text" name="EmpId" id="empIdInput" value=""
-                           placeholder="e.g. 0000001-DBP" class="empid"
-                           maxlength="11" required autocomplete="off"
-                           pattern="\d{7}-[A-Za-z]{3}"
-                           title="Format: 7 digits, dash, 3 letters — e.g. 0000001-DBP" />
+                    <input type="text" name="EmpId" id="empIdInput" value="" placeholder="e.g. 0000001-DBP" class="empid" maxlength="11" required autocomplete="off" pattern="\d{7}-[A-Za-z]{3}" title="Format: 7 digits, dash, 3 letters" />
                     <p class="hint">Format: 7 digits – 3 letters (e.g. 0000001-DBP). Permanent.</p>
                 }
+            </div>
+
+            <!-- PIN Protection -->
+            <div class="form-group">
+                <div class="field-header">
+                    <label><i class="fa-solid fa-lock" style="margin-right:5px;color:#2563eb;font-size:10px;"></i>Card PIN <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">(4–6 digits, optional)</span></label>
+                </div>
+                <input type="password" name="CardPin" value=""
+                       placeholder="@(string.IsNullOrWhiteSpace(Model.CardPin) ? "Set a PIN to protect edits" : "Enter PIN to confirm changes")"
+                       maxlength="6" inputmode="numeric" autocomplete="off"
+                       id="cardPinInput" oninput="this.classList.remove('pin-error'); document.getElementById('pinErrMsg').classList.remove('show');" />
+                <p class="pin-error-msg" id="pinErrMsg">⚠️ This card has a PIN — enter it to save changes.</p>
+                @if (string.IsNullOrWhiteSpace(Model.CardPin))
+                { <p class="hint">Prevents others from editing your card.</p> }
+                else
+                { <p class="hint">Leave blank to keep your existing PIN unchanged.</p> }
+            </div>
+
+            <!-- Card Active Toggle -->
+            <div class="form-group">
+                <div class="field-header">
+                    <label>Card Status</label>
+                    <div class="toggle-wrap" style="gap:6px;">
+                        <span id="activeLabel" class="toggle-badge @(Model.IsActive ? "badge-active" : "badge-inactive")">@(Model.IsActive ? "Active" : "Inactive")</span>
+                        <input type="hidden" name="IsActive" id="hIsActive" value="@(Model.IsActive ? "true" : "false")" />
+                        <button type="button" id="eyeActive" class="eye-toggle @(!Model.IsActive ? "hidden" : "")" onclick="toggleActive()" title="Toggle card active/inactive">
+                            <i class="fa-regular @(Model.IsActive ? "fa-eye" : "fa-eye-slash")"></i>
+                        </button>
+                    </div>
+                </div>
+                <p class="hint" id="activeHint">@(Model.IsActive ? "Your card is visible to anyone with the link." : "Your card is hidden — visitors see 'Card Unavailable'.")</p>
             </div>
 
             <div class="divider"></div>
             <p class="section-title">Personal Information</p>
 
             <div class="form-group">
-                <label>Full Name *</label>
-                <input type="text" name="Name" value="@Model.Name"
-                       placeholder="e.g. Sea Den E. Puri" maxlength="80" required />
+                <div class="field-header">
+                    <label>Full Name *</label>
+                    <div class="toggle-wrap">
+                        <input type="hidden" name="ShowName" id="hShowName" value="@(Model.ShowName ? "true" : "false")" />
+                        <button type="button" id="eyeName" class="eye-toggle @(!Model.ShowName ? "hidden" : "")" onclick="eyeToggle('hShowName','eyeName','fieldName')" title="Toggle visibility"><i class="fa-regular @(Model.ShowName ? "fa-eye" : "fa-eye-slash")"></i></button>
+                    </div>
+                </div>
+                <input type="text" id="fieldName" name="Name" value="@Model.Name" placeholder="e.g. Sea Den E. Puri" maxlength="80" required class="@(!Model.ShowName ? "field-hidden" : "")" />
+                @if (!Model.ShowName) { <p class="hide-hint">Hidden from your card.</p> }
             </div>
+
             <div class="form-group">
-                <label>Job Title</label>
-                <input type="text" name="Title" value="@Model.Title"
-                       placeholder="e.g. Software Engineer" maxlength="100" />
+                <div class="field-header">
+                    <label>Nickname / Preferred Name</label>
+                    <div class="toggle-wrap">
+                        <input type="hidden" name="ShowPreferredName" id="hShowPreferredName" value="@(Model.ShowPreferredName ? "true" : "false")" />
+                        <button type="button" id="eyeNickname" class="eye-toggle @(!Model.ShowPreferredName ? "hidden" : "")" onclick="eyeToggle('hShowPreferredName','eyeNickname',null); toggleNicknameField()" title="Toggle visibility"><i class="fa-regular @(Model.ShowPreferredName ? "fa-eye" : "fa-eye-slash")"></i></button>
+                    </div>
+                </div>
+                <div id="nicknameField" style="@(Model.ShowPreferredName ? "" : "display:none;")">
+                    <input type="text" name="PreferredName" value="@Model.PreferredName" placeholder="e.g. Den, Ace, CJ" maxlength="60" />
+                    <p class="hint">Shown as the main name on your card. Full name appears below it.</p>
+                </div>
+                @if (!Model.ShowPreferredName) { <p class="hint">Toggle on to add a nickname shown on your card.</p> }
             </div>
+
+            <div class="divider"></div>
+            <p class="section-title">Professional</p>
+
             <div class="form-group">
-                <label>Organization</label>
-                <input type="text" name="Org" value="@Model.Org"
-                       placeholder="Development Bank of the Philippines" maxlength="120" />
+                <div class="field-header">
+                    <label>Job Title</label>
+                    <div class="toggle-wrap">
+                        <input type="hidden" name="ShowTitle" id="hShowTitle" value="@(Model.ShowTitle ? "true" : "false")" />
+                        <button type="button" id="eyeTitle" class="eye-toggle @(!Model.ShowTitle ? "hidden" : "")" onclick="eyeToggle('hShowTitle','eyeTitle','fieldTitle')" title="Toggle visibility"><i class="fa-regular @(Model.ShowTitle ? "fa-eye" : "fa-eye-slash")"></i></button>
+                    </div>
+                </div>
+                <input type="text" id="fieldTitle" name="Title" value="@Model.Title" placeholder="e.g. Software Engineer" maxlength="100" class="@(!Model.ShowTitle ? "field-hidden" : "")" />
+                @if (!Model.ShowTitle) { <p class="hide-hint">Hidden from your card.</p> }
+            </div>
+
+            <div class="form-group">
+                <div class="field-header">
+                    <label>Department</label>
+                    <div class="toggle-wrap">
+                        <input type="hidden" name="ShowDepartment" id="hShowDepartment" value="@(Model.ShowDepartment ? "true" : "false")" />
+                        <button type="button" id="eyeDepartment" class="eye-toggle @(!Model.ShowDepartment ? "hidden" : "")" onclick="eyeToggle('hShowDepartment','eyeDepartment','fieldDepartment')" title="Toggle visibility"><i class="fa-regular @(Model.ShowDepartment ? "fa-eye" : "fa-eye-slash")"></i></button>
+                    </div>
+                </div>
+                <input type="text" id="fieldDepartment" name="Department" value="@Model.Department" placeholder="e.g. Information Technology" maxlength="120" class="@(!Model.ShowDepartment ? "field-hidden" : "")" />
+                @if (!Model.ShowDepartment) { <p class="hide-hint">Hidden from your card.</p> }
+            </div>
+
+            <div class="form-group">
+                <div class="field-header">
+                    <label>Organization</label>
+                    <div class="toggle-wrap">
+                        <input type="hidden" name="ShowOrg" id="hShowOrg" value="@(Model.ShowOrg ? "true" : "false")" />
+                        <button type="button" id="eyeOrg" class="eye-toggle @(!Model.ShowOrg ? "hidden" : "")" onclick="eyeToggle('hShowOrg','eyeOrg','fieldOrg')" title="Toggle visibility"><i class="fa-regular @(Model.ShowOrg ? "fa-eye" : "fa-eye-slash")"></i></button>
+                    </div>
+                </div>
+                <input type="text" id="fieldOrg" name="Org" value="@Model.Org" placeholder="Development Bank of the Philippines" maxlength="120" class="@(!Model.ShowOrg ? "field-hidden" : "")" />
+                @if (!Model.ShowOrg) { <p class="hide-hint">Hidden from your card.</p> }
+            </div>
+
+            <div class="form-group">
+                <div class="field-header">
+                    <label>Office / Branch</label>
+                    <div class="toggle-wrap">
+                        <input type="hidden" name="ShowOffice" id="hShowOffice" value="@(Model.ShowOffice ? "true" : "false")" />
+                        <button type="button" id="eyeOffice" class="eye-toggle @(!Model.ShowOffice ? "hidden" : "")" onclick="eyeToggle('hShowOffice','eyeOffice','fieldOffice')" title="Toggle visibility"><i class="fa-regular @(Model.ShowOffice ? "fa-eye" : "fa-eye-slash")"></i></button>
+                    </div>
+                </div>
+                <input type="text" id="fieldOffice" name="Office" value="@Model.Office" placeholder="e.g. Head Office, Sen. Gil Puyat Ave., Makati City" maxlength="200" class="@(!Model.ShowOffice ? "field-hidden" : "")" />
+                @if (Model.ShowOffice) { <p class="hint">Clicking this on the card opens Google Maps.</p> }
+                else { <p class="hide-hint">Hidden from your card.</p> }
             </div>
 
             <div class="divider"></div>
             <p class="section-title">Contact Details</p>
 
             <div class="form-group">
-                <label>Phone Number</label>
-                <input type="tel" name="Phone" value="@Model.Phone"
-                       placeholder="+63 000 000 0000" maxlength="30" />
+                <div class="field-header">
+                    <label>Phone Number</label>
+                    <div class="toggle-wrap">
+                        <input type="hidden" name="ShowPhone" id="hShowPhone" value="@(Model.ShowPhone ? "true" : "false")" />
+                        <button type="button" id="eyePhone" class="eye-toggle @(!Model.ShowPhone ? "hidden" : "")" onclick="eyeToggle('hShowPhone','eyePhone','fieldPhone')" title="Toggle visibility"><i class="fa-regular @(Model.ShowPhone ? "fa-eye" : "fa-eye-slash")"></i></button>
+                    </div>
+                </div>
+                <input type="tel" id="fieldPhone" name="Phone" value="@Model.Phone" placeholder="+63 000 000 0000" maxlength="30" class="@(!Model.ShowPhone ? "field-hidden" : "")" />
+                @if (!Model.ShowPhone) { <p class="hide-hint">Hidden from your card.</p> }
             </div>
+
             <div class="form-group">
-                <label>Email Address</label>
-                <input type="email" name="Email" value="@Model.Email"
-                       placeholder="you@@dbp.ph" maxlength="120" />
-            </div>
-            <div class="form-group">
-                <label>Office / Branch</label>
-                <input type="text" name="Office" value="@Model.Office"
-                       placeholder="e.g. Head Office, Sen. Gil Puyat Ave., Makati City" maxlength="200" />
-                <p class="hint">Clicking this on the card opens Google Maps.</p>
+                <div class="field-header">
+                    <label>Email Address</label>
+                    <div class="toggle-wrap">
+                        <input type="hidden" name="ShowEmail" id="hShowEmail" value="@(Model.ShowEmail ? "true" : "false")" />
+                        <button type="button" id="eyeEmail" class="eye-toggle @(!Model.ShowEmail ? "hidden" : "")" onclick="eyeToggle('hShowEmail','eyeEmail','fieldEmail')" title="Toggle visibility"><i class="fa-regular @(Model.ShowEmail ? "fa-eye" : "fa-eye-slash")"></i></button>
+                    </div>
+                </div>
+                <input type="email" id="fieldEmail" name="Email" value="@Model.Email" placeholder="you@@dbp.ph" maxlength="120" class="@(!Model.ShowEmail ? "field-hidden" : "")" />
+                @if (!Model.ShowEmail) { <p class="hide-hint">Hidden from your card.</p> }
             </div>
 
             <div class="divider"></div>
             <p class="section-title">Links <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">(optional)</span></p>
 
             <div class="form-group">
-                <label>GitHub</label>
-                <input type="url" name="GitHub" value="@Model.GitHub"
-                       placeholder="https://github.com/username" maxlength="200" />
+                <div class="field-header">
+                    <label>GitHub</label>
+                    <div class="toggle-wrap">
+                        <input type="hidden" name="ShowGitHub" id="hShowGitHub" value="@(Model.ShowGitHub ? "true" : "false")" />
+                        <button type="button" id="eyeGitHub" class="eye-toggle @(!Model.ShowGitHub ? "hidden" : "")" onclick="eyeToggle('hShowGitHub','eyeGitHub','fieldGitHub')" title="Toggle visibility"><i class="fa-regular @(Model.ShowGitHub ? "fa-eye" : "fa-eye-slash")"></i></button>
+                    </div>
+                </div>
+                <input type="url" id="fieldGitHub" name="GitHub" value="@Model.GitHub" placeholder="https://github.com/username" maxlength="200" class="@(!Model.ShowGitHub ? "field-hidden" : "")" />
+                @if (!Model.ShowGitHub) { <p class="hide-hint">Hidden from your card.</p> }
             </div>
+
             <div class="form-group">
-                <label>LinkedIn</label>
-                <input type="url" name="LinkedIn" value="@Model.LinkedIn"
-                       placeholder="https://linkedin.com/in/username" maxlength="200" />
+                <div class="field-header">
+                    <label>LinkedIn</label>
+                    <div class="toggle-wrap">
+                        <input type="hidden" name="ShowLinkedIn" id="hShowLinkedIn" value="@(Model.ShowLinkedIn ? "true" : "false")" />
+                        <button type="button" id="eyeLinkedIn" class="eye-toggle @(!Model.ShowLinkedIn ? "hidden" : "")" onclick="eyeToggle('hShowLinkedIn','eyeLinkedIn','fieldLinkedIn')" title="Toggle visibility"><i class="fa-regular @(Model.ShowLinkedIn ? "fa-eye" : "fa-eye-slash")"></i></button>
+                    </div>
+                </div>
+                <input type="url" id="fieldLinkedIn" name="LinkedIn" value="@Model.LinkedIn" placeholder="https://linkedin.com/in/username" maxlength="200" class="@(!Model.ShowLinkedIn ? "field-hidden" : "")" />
+                @if (!Model.ShowLinkedIn) { <p class="hide-hint">Hidden from your card.</p> }
             </div>
+
             <div class="form-group">
-                <label>Portfolio / Website</label>
-                <input type="url" name="Portfolio" value="@Model.Portfolio"
-                       placeholder="https://yoursite.com" maxlength="200" />
+                <div class="field-header">
+                    <label>Portfolio / Website</label>
+                    <div class="toggle-wrap">
+                        <input type="hidden" name="ShowPortfolio" id="hShowPortfolio" value="@(Model.ShowPortfolio ? "true" : "false")" />
+                        <button type="button" id="eyePortfolio" class="eye-toggle @(!Model.ShowPortfolio ? "hidden" : "")" onclick="eyeToggle('hShowPortfolio','eyePortfolio','fieldPortfolio')" title="Toggle visibility"><i class="fa-regular @(Model.ShowPortfolio ? "fa-eye" : "fa-eye-slash")"></i></button>
+                    </div>
+                </div>
+                <input type="url" id="fieldPortfolio" name="Portfolio" value="@Model.Portfolio" placeholder="https://yoursite.com" maxlength="200" class="@(!Model.ShowPortfolio ? "field-hidden" : "")" />
+                @if (!Model.ShowPortfolio) { <p class="hide-hint">Hidden from your card.</p> }
             </div>
 
             <div class="divider"></div>
-            <button type="submit" class="btn btn-save">Save &amp; View My QR</button>
+            <p class="section-title">Additional Info <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">(your own fields)</span></p>
+            <p class="hint" style="margin-bottom:10px;">Add social media, messaging apps, or any other info you want on your card.</p>
+            <div id="extraInfoList">
+                @if (Model.ExtraInfo != null)
+                {
+                    for (int i = 0; i < Model.ExtraInfo.Count; i++)
+                    {
+                        var allLabels2 = new[]{"Facebook","Instagram","Twitter / X","TikTok","YouTube","Messenger","WhatsApp","Viber","Telegram","Skype","Discord","Snapchat","Department","Birthday","Other"};
+                        var labelIcons2 = new System.Collections.Generic.Dictionary<string,string>{{"Facebook","📘"},{"Instagram","📷"},{"Twitter / X","🐦"},{"TikTok","🎵"},{"YouTube","▶️"},{"Messenger","💬"},{"WhatsApp","📱"},{"Viber","📳"},{"Telegram","✈️"},{"Skype","🔵"},{"Discord","🎮"},{"Snapchat","👻"},{"Department","🏢"},{"Birthday","🎂"},{"Other","✏️"}};
+                        var currentLabel2 = Model.ExtraInfo[i].Label;
+                        var selectHtml2 = new System.Text.StringBuilder();
+                        selectHtml2.Append($"<select class=\"extra-select\" name=\"ExtraInfo[{i}].Label\">");
+                        foreach (var opt in allLabels2) {
+                            var sel = opt == currentLabel2 ? " selected" : "";
+                            selectHtml2.Append($"<option value=\"{opt}\"{sel}>{labelIcons2[opt]} {opt}</option>");
+                        }
+                        selectHtml2.Append("</select>");
+                        <div class="extra-row">
+                            <div class="extra-row-top">
+                                @Html.Raw(selectHtml2.ToString())
+                                <input type="text" class="extra-value-input" name="ExtraInfo[@i].Value" value="@Model.ExtraInfo[i].Value" placeholder="Username, URL or number" maxlength="200" />
+                                <button type="button" class="extra-remove-btn" onclick="removeExtraRow(this)"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <input type="text" class="extra-title-input" name="ExtraInfo[@i].Title" value="@Model.ExtraInfo[i].Title" placeholder="Card title (optional, e.g. 'My Facebook')" maxlength="60" />
+                        </div>
+                    }
+                }
+            </div>
+            <button type="button" class="btn-add-extra" onclick="addExtraRow()">
+                <i class="fa-solid fa-plus"></i> Add Info
+            </button>
+
+            <div class="divider"></div>
+            <button type="submit" class="btn btn-save" onclick="return validatePin()">Save &amp; View My QR</button>
         </form>
 
         @if (isExisting)
         {
             <form method="post" action="/reset/@Model.EmpId" style="margin-top:8px;">
                 @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-reset"
-                        onclick="return confirm('Reset your card? All info will be cleared.')">
-                    Reset My Card
-                </button>
+                <button type="submit" class="btn btn-danger" onclick="return confirm('Reset your card? All info will be cleared.')">Reset My Card</button>
             </form>
         }
+    </div><!-- /.card -->
+</div><!-- /.wrap -->
 
+<!-- Floating preview button -->
+<button class="preview-fab" onclick="openPreviewModal()" title="Preview Card">
+    <i class="fa-solid fa-eye"></i> Preview
+</button>
+
+<!-- Preview modal (mobile) -->
+<div class="preview-modal-overlay" id="previewModalOverlay" onclick="closePreviewModal()">
+    <div class="preview-modal" onclick="event.stopPropagation()">
+        <div class="preview-modal-header">
+            <span class="preview-modal-title"><i class="fa-solid fa-eye" style="margin-right:5px;"></i>Live Preview</span>
+            <button class="preview-modal-close" onclick="closePreviewModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="preview-card" id="previewCardMobile">
+            <div class="preview-photo-wrap">
+                <div class="preview-avatar" id="prevPhotoWrapM">
+                    <img src="/dbp-logo.png" alt="DBP" style="width:42px;height:42px;object-fit:contain;" />
+                </div>
+            </div>
+            <p class="preview-badge">DBP Digital Card</p>
+            <p class="preview-name" id="prevNameM">—</p>
+            <p class="preview-title" id="prevTitleM" style="display:none;"></p>
+            <p class="preview-dept"  id="prevDeptM"  style="display:none;"></p>
+            <p class="preview-org"   id="prevOrgM"   style="display:none;"></p>
+            <div class="preview-divider"></div>
+            <div id="prevBtnsM" style="display:none;"></div>
+            <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:6px;">Fill in the form to preview your card</p>
+        </div>
     </div>
 </div>
-
 <script>
+    var extraIndex = @(Model.ExtraInfo?.Count ?? 0);
+
     var empInput = document.getElementById('empIdInput');
     if (empInput) {
         empInput.addEventListener('input', function() {
             var raw = this.value.replace(/[^0-9A-Za-z]/g, '');
             var digits = raw.replace(/[^0-9]/g, '').slice(0, 7);
             var letters = raw.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3);
-            this.value = digits.length < 7
-                ? digits
-                : digits + (letters.length > 0 ? '-' + letters : (raw.length > 7 ? '-' : ''));
+            this.value = digits.length < 7 ? digits : digits + (letters.length > 0 ? '-' + letters : (raw.length > 7 ? '-' : ''));
         });
         empInput.addEventListener('keydown', function(e) {
-            if (this.value.length === 7 && !this.value.includes('-') &&
-                e.key !== 'Backspace' && e.key !== 'Delete') {
-                this.value += '-';
-            }
+            if (this.value.length === 7 && !this.value.includes('-') && e.key !== 'Backspace' && e.key !== 'Delete') this.value += '-';
         });
     }
 
-    function openPhotoSheet() {
-        document.getElementById('photoSheetOverlay').classList.add('open');
-    }
-    function closePhotoSheet() {
-        document.getElementById('photoSheetOverlay').classList.remove('open');
-    }
+    function openPhotoSheet()  { document.getElementById('photoSheetOverlay').classList.add('open'); }
+    function closePhotoSheet() { document.getElementById('photoSheetOverlay').classList.remove('open'); }
 
     function handlePhotoFile(input) {
         if (!input.files || !input.files[0]) return;
@@ -434,14 +534,13 @@
             img.onload = function() {
                 var canvas = document.createElement('canvas');
                 var max = 300, w = img.width, h = img.height;
-                if (w > h) { if (w > max) { h = h * max / w; w = max; } }
-                else       { if (h > max) { w = w * max / h; h = max; } }
+                if (w > h) { if (w > max) { h = h * max / w; w = max; } } else { if (h > max) { w = w * max / h; h = max; } }
                 canvas.width = w; canvas.height = h;
                 canvas.getContext('2d').drawImage(img, 0, 0, w, h);
                 var dataUrl = canvas.toDataURL('image/jpeg', 0.82);
                 document.getElementById('photoData').value = dataUrl;
-                var c = document.getElementById('photoTopCircle');
-                c.innerHTML = '<img src="' + dataUrl + '" alt="Photo" style="width:100%;height:100%;object-fit:cover;display:block;" />';
+                document.getElementById('photoTopCircle').innerHTML = '<img src="' + dataUrl + '" alt="Photo" style="width:100%;height:100%;object-fit:cover;display:block;" />';
+                updatePreview();
             };
             img.src = e.target.result;
         };
@@ -450,14 +549,174 @@
 
     function setAvatar(key) {
         document.getElementById('photoData').value = key;
-        var c = document.getElementById('photoTopCircle');
-        if (key === 'avatar:female') {
-            c.innerHTML = '<img src="/dbp-girl.png" alt="Female" style="width:100%;height:100%;object-fit:cover;display:block;" />';
-        } else {
-            c.innerHTML = '<img src="/dbp-boy.png" alt="Male" style="width:100%;height:100%;object-fit:cover;display:block;" />';
+        document.getElementById('photoTopCircle').innerHTML = key === 'avatar:female'
+            ? '<img src="/dbp-girl.png" alt="Female" style="width:100%;height:100%;object-fit:cover;display:block;" />'
+            : '<img src="/dbp-boy.png" alt="Male" style="width:100%;height:100%;object-fit:cover;display:block;" />';
+        updatePreview();
+    }
+
+    // Eye-only toggle: click the eye icon to show/hide field
+    function eyeToggle(hiddenId, btnId, fieldId) {
+        var hidden = document.getElementById(hiddenId);
+        var btn    = document.getElementById(btnId);
+        var isShowing = hidden.value === 'true';
+        var nowShowing = !isShowing;
+
+        hidden.value = nowShowing ? 'true' : 'false';
+
+        // Update icon and color
+        btn.querySelector('i').className = 'fa-regular ' + (nowShowing ? 'fa-eye' : 'fa-eye-slash');
+        if (nowShowing) btn.classList.remove('hidden');
+        else            btn.classList.add('hidden');
+
+        // Update field style if provided
+        if (fieldId) {
+            var field = document.getElementById(fieldId);
+            if (field) {
+                if (nowShowing) field.classList.remove('field-hidden');
+                else            field.classList.add('field-hidden');
+            }
         }
     }
-</script>
 
+    function toggleNicknameField() {
+        var hidden = document.getElementById('hShowPreferredName');
+        var showing = hidden.value === 'true';
+        document.getElementById('nicknameField').style.display = showing ? '' : 'none';
+    }
+
+    function toggleActive() {
+        var hidden  = document.getElementById('hIsActive');
+        var btn     = document.getElementById('eyeActive');
+        var label   = document.getElementById('activeLabel');
+        var hint    = document.getElementById('activeHint');
+        var isNowActive = hidden.value !== 'true';
+        hidden.value = isNowActive ? 'true' : 'false';
+        btn.querySelector('i').className = 'fa-regular ' + (isNowActive ? 'fa-eye' : 'fa-eye-slash');
+        if (isNowActive) btn.classList.remove('hidden'); else btn.classList.add('hidden');
+        label.textContent = isNowActive ? 'Active' : 'Inactive';
+        label.className   = 'toggle-badge ' + (isNowActive ? 'badge-active' : 'badge-inactive');
+        hint.textContent  = isNowActive ? 'Your card is visible to anyone with the link.' : "Your card is hidden — visitors see 'Card Unavailable'.";
+    }
+
+    function addExtraRow() {
+        var list = document.getElementById('extraInfoList');
+        var row = document.createElement('div');
+        row.className = 'extra-row';
+        var opts = ['Facebook','Instagram','Twitter / X','TikTok','YouTube','Messenger','WhatsApp','Viber','Telegram','Skype','Discord','Snapchat','Department','Birthday','Other'];
+        var selectHtml = '<select class="extra-select" name="ExtraInfo[' + extraIndex + '].Label">';
+        var icons = {'Facebook':'📘','Instagram':'📷','Twitter / X':'🐦','TikTok':'🎵','YouTube':'▶️','Messenger':'💬','WhatsApp':'📱','Viber':'📳','Telegram':'✈️','Skype':'🔵','Discord':'🎮','Snapchat':'👻','Department':'🏢','Birthday':'🎂','Other':'✏️'};
+        opts.forEach(function(o) { selectHtml += '<option value="' + o + '">' + (icons[o]||'') + ' ' + o + '</option>'; });
+        selectHtml += '</select>';
+        row.innerHTML =
+            '<div class="extra-row-top">' +
+                selectHtml +
+                '<input type="text" class="extra-value-input" name="ExtraInfo[' + extraIndex + '].Value" placeholder="Username, URL or number" maxlength="200" />' +
+                '<button type="button" class="extra-remove-btn" onclick="removeExtraRow(this)"><i class="fa-solid fa-xmark"></i></button>' +
+            '</div>' +
+            '<input type="text" class="extra-title-input" name="ExtraInfo[' + extraIndex + '].Title" placeholder="Card title (optional, e.g. \'My Facebook\')" maxlength="60" />';
+        list.appendChild(row);
+        extraIndex++;
+        row.querySelector('.extra-value-input').focus();
+    }
+
+    function removeExtraRow(btn) {
+        btn.closest('.extra-row').remove();
+    }
+
+    function updateExtraPlaceholder(select) {
+        // placeholder hook for future use
+    }
+
+    // ── Live Preview ──────────────────────────────────────────────────────────
+    function g(name) { var el = document.querySelector('[name="' + name + '"]'); return el ? el.value.trim() : ''; }
+    function shown(id) { var el = document.getElementById(id); return !el || el.value === 'true'; }
+
+    function pBtn(icon, text) {
+        return '<div style="display:flex;align-items:center;gap:7px;padding:6px 10px;margin:3px 0;border-radius:8px;border:1.5px solid #2563eb;color:#2563eb;font-size:11px;font-weight:700;">'
+             + '<i class="' + icon + '" style="width:13px;text-align:center;font-size:11px;"></i>' + text + '</div>';
+    }
+
+    function updatePreview() {
+        var name  = g('Name'), nick = g('PreferredName'), title = g('Title'), dept = g('Department');
+        var org   = g('Org'),  phone = g('Phone'), email = g('Email'), office = g('Office');
+        var github= g('GitHub'), linkedin = g('LinkedIn'), portfolio = g('Portfolio');
+        var photoData = (document.getElementById('photoData') || {}).value || '';
+
+        var sName = shown('hShowName'), sNick = shown('hShowPreferredName');
+        var sTitle= shown('hShowTitle'), sDept = shown('hShowDepartment'), sOrg = shown('hShowOrg');
+        var sPhone= shown('hShowPhone'), sEmail= shown('hShowEmail'), sOffice = shown('hShowOffice');
+        var sGH   = shown('hShowGitHub'), sLI = shown('hShowLinkedIn'), sPF = shown('hShowPortfolio');
+        var sPhoto= shown('hShowPhoto');
+
+        var displayName = (sNick && nick) ? nick : (sName && name ? name : '—');
+
+        ['', 'M'].forEach(function(s) {
+            // Photo
+            var wrap = document.getElementById('prevPhotoWrap' + s);
+            if (wrap) {
+                var ph = '';
+                if (!sPhoto || !photoData)          ph = '<img src="/dbp-logo.png" style="width:42px;height:42px;object-fit:contain;" />';
+                else if (photoData.startsWith('data:')) ph = '<img src="' + photoData + '" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;margin:0 auto;" />';
+                else if (photoData === 'avatar:male')   ph = '<img src="/dbp-boy.png"  style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;margin:0 auto;" />';
+                else if (photoData === 'avatar:female') ph = '<img src="/dbp-girl.png" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;margin:0 auto;" />';
+                else ph = '<img src="/dbp-logo.png" style="width:42px;height:42px;object-fit:contain;" />';
+                wrap.innerHTML = ph;
+            }
+            // Name
+            var nEl = document.getElementById('prevName' + s);
+            if (nEl) nEl.textContent = displayName;
+            // Subtitle fields
+            var tEl = document.getElementById('prevTitle' + s);
+            if (tEl) { tEl.textContent = title; tEl.style.display = (sTitle && title) ? '' : 'none'; }
+            var dEl = document.getElementById('prevDept' + s);
+            if (dEl) { dEl.textContent = dept; dEl.style.display = (sDept && dept) ? '' : 'none'; }
+            var oEl = document.getElementById('prevOrg' + s);
+            if (oEl) { oEl.textContent = org; oEl.style.display = (sOrg && org) ? '' : 'none'; }
+            // Buttons
+            var btns = document.getElementById('prevBtns' + s);
+            if (btns) {
+                var html = '';
+                if (sPhone && phone) html += pBtn('fa-solid fa-phone', 'Call Now');
+                if (sEmail && email) html += pBtn('fa-solid fa-envelope', 'Send Email');
+                if ((sPhone && phone) || (sEmail && email)) html += pBtn('fa-solid fa-address-card', 'Save Contact');
+                if (sGH && github)   html += pBtn('fa-brands fa-github', 'View GitHub');
+                if (sLI && linkedin) html += pBtn('fa-brands fa-linkedin', 'View LinkedIn');
+                if (sPF && portfolio)html += pBtn('fa-solid fa-globe', 'Visit Website');
+                if (sOffice && office) html += pBtn('fa-solid fa-location-dot', office.length > 24 ? office.slice(0,24)+'…' : office);
+                btns.style.display = html ? '' : 'none';
+                btns.innerHTML = html;
+            }
+        });
+    }
+
+    // Attach listeners using event delegation — works for dynamically added rows too
+    document.addEventListener('DOMContentLoaded', function() {
+        updatePreview();
+        document.addEventListener('input',  function() { updatePreview(); });
+        document.addEventListener('change', function() { updatePreview(); });
+        document.addEventListener('click',  function(e) {
+            if (e.target.closest('.eye-toggle')) setTimeout(updatePreview, 40);
+        });
+    });
+
+    // PIN validation — highlight and scroll if card has PIN but field is empty
+    var cardHasPin = @(string.IsNullOrWhiteSpace(Model.CardPin) ? "false" : "true");
+    function validatePin() {
+        if (!cardHasPin) return true; // no existing PIN, no validation needed
+        var pinInput = document.getElementById('cardPinInput');
+        if (!pinInput || pinInput.value.trim() !== '') return true; // PIN entered, allow submit
+        // PIN missing — highlight red and scroll to it
+        pinInput.classList.add('pin-error');
+        var errMsg = document.getElementById('pinErrMsg');
+        if (errMsg) errMsg.classList.add('show');
+        pinInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        pinInput.focus();
+        return false; // block submit
+    }
+</script>
 </body>
 </html>
+
+    function openPreviewModal()  { document.getElementById('previewModalOverlay').classList.add('open'); updatePreview(); }
+    function closePreviewModal() { document.getElementById('previewModalOverlay').classList.remove('open'); }

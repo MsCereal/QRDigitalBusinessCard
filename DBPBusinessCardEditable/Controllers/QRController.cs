@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using DBPBusinessCardEditable.Services;
+using Microsoft.AspNetCore.Mvc;
 using QRCoder;
 using SkiaSharp;
 using System.IO;
@@ -7,11 +8,18 @@ namespace DBPBusinessCardEditable.Controllers
 {
     public class QRController : Controller
     {
-        // GET /QR/Generate/{empId}  — returns QR PNG unique to this employee
+        private readonly CardProfileService _service;
+        public QRController(CardProfileService service) => _service = service;
+
+        // GET /QR/Generate/{empId} — returns QR PNG encoding the token-based card URL
         [HttpGet("/QR/Generate/{empId}")]
         public IActionResult Generate(string empId)
         {
-            string url = $"{Request.Scheme}://{Request.Host}/card/{empId}";
+            var profile = _service.Get(empId);
+            string token = profile?.CardToken;
+            // Fall back to empId in URL if token not yet assigned (shouldn't happen after save)
+            string cardPath = !string.IsNullOrWhiteSpace(token) ? token : empId;
+            string url = $"{Request.Scheme}://{Request.Host}/card/{cardPath}";
             return BuildQrImage(url);
         }
 

@@ -2,7 +2,7 @@
 @{
     Layout = null;
     string empId   = Model.EmpId;
-    string cardUrl = $"{Context.Request.Scheme}://{Context.Request.Host}/card/{empId}";
+    string cardUrl = $"{Context.Request.Scheme}://{Context.Request.Host}/card/{Model.CardToken}";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -209,6 +209,20 @@
         .btn-save-qr:hover { background: rgba(255,255,255,0.16); }
         .btn-save-qr:active { transform: scale(0.97); }
         .btn-save-qr i { font-size: 14px; }
+
+        /* ── Share via section ── */
+        .share-section { margin-bottom: 20px; }
+        .share-row { display: flex; gap: 10px; }
+        .btn-teams {
+            background: rgba(98,100,167,0.25); border: 1.5px solid rgba(98,100,167,0.5);
+            color: #a5b4fc; flex: 1;
+        }
+        .btn-teams:hover { background: rgba(98,100,167,0.45); }
+        .btn-outlook {
+            background: rgba(0,120,212,0.2); border: 1.5px solid rgba(0,120,212,0.45);
+            color: #93c5fd; flex: 1;
+        }
+        .btn-outlook:hover { background: rgba(0,120,212,0.38); }
     </style>
 </head>
 <body>
@@ -285,10 +299,26 @@
         </div>
     </div>
 
+    <!-- Share via Teams & Outlook -->
+    <div class="share-section">
+        <div class="divider-row"><span>SHARE VIA</span></div>
+        <div class="share-row">
+            <a id="teamsBtn" href="#" class="btn btn-teams" target="_blank" rel="noopener">
+                <i class="fa-brands fa-microsoft"></i> Teams
+            </a>
+            <a id="outlookBtn" href="#" class="btn btn-outlook">
+                <i class="fa-solid fa-envelope"></i> Outlook
+            </a>
+        </div>
+    </div>
+
     <!-- Owner actions -->
     <div class="owner-row">
         <a href="/setup?empId=@empId" class="btn btn-edit">
             <i class="fa-solid fa-pen-to-square"></i> Edit Card
+        </a>
+        <a href="/stats/@empId" class="btn btn-edit" style="background:rgba(255,255,255,0.05);">
+            <i class="fa-solid fa-chart-line"></i> Stats
         </a>
         <form method="post" action="/reset/@empId" style="flex:1;display:flex;">
             @Html.AntiForgeryToken()
@@ -305,6 +335,23 @@
     var cardUrl = '@cardUrl';
     var empId   = '@empId';
     var empName = '@Model.Name';
+
+    // Teams deep link — opens a new chat with the card URL pre-filled
+    (function() {
+        var msg  = encodeURIComponent('Hi! Here is my DBP Digital Business Card: ' + cardUrl);
+        document.getElementById('teamsBtn').href =
+            'https://teams.microsoft.com/l/chat/0/0?message=' + msg;
+    })();
+
+    // Outlook mailto — pre-fills subject and body
+    (function() {
+        var subject = encodeURIComponent('My DBP Digital Business Card – ' + empName);
+        var body    = encodeURIComponent(
+            'Hi,\n\nPlease find my DBP Digital Business Card below:\n\n' +
+            cardUrl + '\n\nYou can scan the QR code or click the link to view my card.\n\nBest regards,\n' + empName
+        );
+        document.getElementById('outlookBtn').href = 'mailto:?subject=' + subject + '&body=' + body;
+    })();
 
     function copyLink() {
         navigator.clipboard.writeText(cardUrl).then(function() {

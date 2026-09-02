@@ -1,0 +1,141 @@
+@model DBPBusinessCardEditable.Models.CardProfile
+@{
+    Layout = null;
+    var stats = (ValueTuple<int,int,int,int>)ViewBag.Stats;
+    int todayViews = stats.Item1, weekViews = stats.Item2, monthViews = stats.Item3, totalViews = stats.Item4;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Card Stats – @Model.Name</title>
+    <link rel="icon" type="image/png" href="/dbp-icon.png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 30px 16px 60px; position: relative; overflow-x: hidden; }
+        .bg { position: fixed; inset: 0; z-index: 0; background: linear-gradient(155deg, rgba(10,25,70,0.95) 0%, rgba(30,64,175,0.90) 45%, rgba(15,40,100,0.97) 100%), url('/bg.png') center/cover no-repeat; }
+        .wrap { position: relative; z-index: 1; width: 100%; max-width: 480px; }
+        .back { display: inline-flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.5); font-size: 13px; text-decoration: none; margin-bottom: 16px; }
+        .back:hover { color: rgba(255,255,255,0.85); }
+        .card { background: #fff; border-radius: 20px; padding: 24px; border-top: 5px solid #2563eb; box-shadow: 0 12px 40px rgba(0,0,0,0.25); margin-bottom: 16px; }
+        h2 { color: #0f172a; font-size: 17px; font-weight: 800; margin-bottom: 4px; }
+        .sub { color: #64748b; font-size: 12px; margin-bottom: 20px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .stat-box { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; text-align: center; }
+        .stat-num { font-size: 32px; font-weight: 800; color: #2563eb; line-height: 1; }
+        .stat-lbl { font-size: 11px; color: #64748b; margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-box.total { grid-column: 1/-1; background: #eff6ff; border-color: #bfdbfe; }
+        .stat-box.total .stat-num { font-size: 44px; color: #1d4ed8; }
+        .section-title { font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: #2563eb; margin-bottom: 12px; }
+        .audit-row { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; align-items: flex-start; }
+        .audit-row:last-child { border-bottom: none; }
+        .audit-icon { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; }
+        .audit-icon.created    { background: #dcfce7; color: #16a34a; }
+        .audit-icon.updated    { background: #dbeafe; color: #2563eb; }
+        .audit-icon.reset      { background: #fee2e2; color: #dc2626; }
+        .audit-icon.activated  { background: #dcfce7; color: #16a34a; }
+        .audit-icon.deactivated{ background: #fef9c3; color: #ca8a04; }
+        .audit-action { font-size: 12px; font-weight: 700; color: #0f172a; }
+        .audit-detail { font-size: 11px; color: #64748b; margin-top: 2px; }
+        .audit-time   { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+        .empty { text-align: center; color: #94a3b8; font-size: 13px; padding: 20px 0; }
+        .chart-bar-wrap { margin-bottom: 16px; }
+        .chart-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .chart-bar-date { font-size: 10px; color: #94a3b8; width: 72px; flex-shrink: 0; text-align: right; }
+        .chart-bar-track { flex: 1; background: #f1f5f9; border-radius: 4px; height: 14px; overflow: hidden; }
+        .chart-bar-fill  { height: 100%; background: linear-gradient(90deg, #2563eb, #60a5fa); border-radius: 4px; transition: width 0.3s; }
+        .chart-bar-count { font-size: 10px; color: #2563eb; font-weight: 700; width: 24px; text-align: right; flex-shrink: 0; }
+    </style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="wrap">
+    <a href="/qr/@Model.CardToken" class="back"><i class="fa-solid fa-arrow-left"></i> Back to My Card</a>
+
+    <!-- Analytics -->
+    <div class="card">
+        <h2><i class="fa-solid fa-chart-line" style="color:#2563eb;margin-right:8px;"></i>Card Analytics</h2>
+        <p class="sub">How many times your card was viewed</p>
+
+        <div class="stats-grid">
+            <div class="stat-box total">
+                <div class="stat-num">@totalViews</div>
+                <div class="stat-lbl">Total Views</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num">@todayViews</div>
+                <div class="stat-lbl">Today</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num">@weekViews</div>
+                <div class="stat-lbl">Last 7 Days</div>
+            </div>
+        </div>
+
+        @if (Model.ViewHistory != null && Model.ViewHistory.Count > 0)
+        {
+            <p class="section-title">Daily Views (Last 14 Days)</p>
+            var recent = Model.ViewHistory.OrderByDescending(v => v.Date).Take(14).Reverse().ToList();
+            var maxCount = recent.Max(v => v.Count);
+            <div class="chart-bar-wrap">
+                @foreach (var day in recent)
+                {
+                    var pct = maxCount > 0 ? (int)((double)day.Count / maxCount * 100) : 0;
+                    var label = DateTime.TryParse(day.Date, out var dt) ? dt.ToString("MMM d") : day.Date;
+                    <div class="chart-bar-row">
+                        <span class="chart-bar-date">@label</span>
+                        <div class="chart-bar-track">
+                            <div class="chart-bar-fill" style="width:@(pct)%"></div>
+                        </div>
+                        <span class="chart-bar-count">@day.Count</span>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Audit Log -->
+    <div class="card">
+        <h2><i class="fa-solid fa-clock-rotate-left" style="color:#2563eb;margin-right:8px;"></i>Audit Log</h2>
+        <p class="sub" style="margin-bottom:16px;">History of changes to your card</p>
+
+        @if (Model.AuditLog == null || !Model.AuditLog.Any())
+        {
+            <p class="empty"><i class="fa-solid fa-inbox"></i><br />No activity yet.</p>
+        }
+        else
+        {
+            @foreach (var entry in Model.AuditLog)
+            {
+                var iconClass = entry.Action.ToLower() switch {
+                    "created"     => "created",
+                    "updated"     => "updated",
+                    "reset"       => "reset",
+                    "activated"   => "activated",
+                    "deactivated" => "deactivated",
+                    _             => "updated"
+                };
+                var iconName = entry.Action.ToLower() switch {
+                    "created"     => "fa-solid fa-plus",
+                    "updated"     => "fa-solid fa-pen",
+                    "reset"       => "fa-solid fa-rotate-left",
+                    "activated"   => "fa-solid fa-eye",
+                    "deactivated" => "fa-solid fa-eye-slash",
+                    _             => "fa-solid fa-pen"
+                };
+                <div class="audit-row">
+                    <div class="audit-icon @iconClass"><i class="@iconName"></i></div>
+                    <div>
+                        <p class="audit-action">@entry.Action</p>
+                        <p class="audit-detail">@entry.Detail</p>
+                        <p class="audit-time"><i class="fa-regular fa-clock"></i> @entry.Timestamp.ToString("MMM d, yyyy h:mm tt") UTC</p>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+</body>
+</html>
