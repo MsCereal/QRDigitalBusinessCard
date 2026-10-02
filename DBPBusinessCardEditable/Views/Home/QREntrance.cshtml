@@ -18,12 +18,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 36px 20px 50px; overflow-y: auto; overflow-x: hidden; position: relative; }
+        body { font-family: Arial, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px 50px; overflow-y: auto; overflow-x: hidden; position: relative; }
         .bg { position: fixed; inset: 0; z-index: 0; background: linear-gradient(155deg, rgba(10,25,70,0.93) 0%, rgba(30,64,175,0.88) 45%, rgba(15,40,100,0.96) 100%), url('/bg.png') center/cover no-repeat; }
-        .wrap { position: relative; z-index: 1; width: 100%; max-width: 400px; text-align: center; }
-        .brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 24px; }
-        .brand img { height: 42px; object-fit: contain; }
+        .topnav { position: fixed; top: 0; left: 0; right: 0; z-index: 10; padding: 14px 24px; display: flex; align-items: center; }
+        .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .brand img { height: 38px; object-fit: contain; }
         .brand-text { color: #f1f5f9; font-size: 15px; font-weight: 700; }
+        .wrap { position: relative; z-index: 1; width: 100%; max-width: 400px; text-align: center; }
         .profile { margin-bottom: 24px; }
         .profile-photo, .profile-photo-placeholder { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.35); box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: block; margin: 0 auto; }
         .profile-photo-placeholder { background: rgba(37,99,235,0.4); display: flex; align-items: center; justify-content: center; overflow: hidden; }
@@ -108,12 +109,14 @@
 <body>
 <div class="bg"></div>
 
-<div class="wrap">
-    <!-- Brand -->
-    <div class="brand">
+<nav class="topnav">
+    <a href="/" class="brand">
         <img src="/dbp-logo.png" alt="DBP" />
         <span class="brand-text">Digital Business Card</span>
-    </div>
+    </a>
+</nav>
+
+<div class="wrap">
 
     <!-- Profile — NO EmpId shown -->
     <div class="profile">
@@ -170,21 +173,131 @@
         </div>
     </div>
 
+    <!-- Pending approval banner — shown only when employee has changes awaiting review -->
+    @if (Model.HasPending)
+    {
+        <div style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);border-radius:12px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:flex-start;gap:10px;">
+            <span style="font-size:18px;flex-shrink:0;">⏳</span>
+            <div>
+                <p style="color:#fbbf24;font-size:13px;font-weight:800;margin-bottom:2px;">Changes Pending Admin Approval</p>
+                <p style="color:rgba(255,255,255,0.5);font-size:11px;line-height:1.5;">
+                    Your Title, Department, Organization, or Office changes are awaiting review.
+                    Your card currently shows the previously approved information.
+                    @if (Model.PendingSubmittedAt.HasValue)
+                    { <text>Submitted @Model.PendingSubmittedAt.Value.ToString("MMM d, yyyy").</text> }
+                </p>
+            </div>
+        </div>
+    }
+    @if (TempData["PendingSubmitted"] != null)
+    {
+        <div style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);border-radius:12px;padding:12px 16px;margin-bottom:12px;">
+            <p style="color:#fbbf24;font-size:13px;font-weight:800;">✅ Changes submitted for admin review</p>
+            <p style="color:rgba(255,255,255,0.5);font-size:11px;margin-top:2px;">Your Title / Department / Organization / Office changes have been sent to the admin for approval. Other changes were saved immediately.</p>
+        </div>
+    }
+    @if (TempData["Reset"] != null)
+    {
+        <div style="background:rgba(22,163,74,0.15);border:1px solid rgba(22,163,74,0.4);border-radius:12px;padding:12px 16px;margin-bottom:12px;">
+            <p style="color:#4ade80;font-size:13px;font-weight:800;">✅ Card has been reset</p>
+            <p style="color:rgba(255,255,255,0.5);font-size:11px;margin-top:2px;">All card information has been cleared. Click Edit to set up your card again.</p>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div style="background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.4);border-radius:12px;padding:12px 16px;margin-bottom:12px;">
+            <p style="color:#fca5a5;font-size:13px;font-weight:700;">⚠️ @TempData["Error"]</p>
+        </div>
+    }
+
     <!-- Owner actions — Stats opens inline panel, no separate page -->
     <div class="owner-row">
-        <a href="/setup?empId=@empId" class="btn btn-edit">
+        <a href="/me/edit" class="btn btn-edit">
             <i class="fa-solid fa-pen-to-square"></i> Edit
         </a>
         <button class="btn btn-edit" onclick="openStats()" style="background:rgba(255,255,255,0.05);">
             <i class="fa-solid fa-chart-line"></i> Stats
         </button>
-        <form method="post" action="/reset/@empId" style="flex:1;display:flex;">
+        <form method="post" action="/me/reset" style="flex:1;display:flex;" id="resetForm">
             @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-reset" style="width:100%;"
-                    onclick="return confirm('Reset all card info? This cannot be undone.')">
+            <input type="hidden" name="pin" id="resetPinHidden" value="" />
+            <button type="button" class="btn btn-reset" style="width:100%;" onclick="openResetModal()">
                 <i class="fa-solid fa-rotate-left"></i> Reset
             </button>
         </form>
+    </div>
+
+    <!-- Reset confirmation modal -->
+    <div id="resetModalOverlay" onclick="closeResetModal()" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+        <div onclick="event.stopPropagation()" style="background:#1e293b;border:1px solid #334155;border-radius:20px;padding:28px 24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+            <h3 style="color:#f1f5f9;font-size:16px;font-weight:800;margin-bottom:8px;">⚠️ Reset Card</h3>
+            <p style="color:#94a3b8;font-size:13px;margin-bottom:20px;line-height:1.5;">
+                This will clear all your card information. This cannot be undone.
+                @if (!string.IsNullOrWhiteSpace(Model.CardPin))
+                { <text><br/><br/>Enter your PIN to confirm.</text> }
+            </p>
+            @if (!string.IsNullOrWhiteSpace(Model.CardPin))
+            {
+                <input type="password" id="resetPinInput" placeholder="Enter PIN"
+                       maxlength="6" inputmode="numeric" autocomplete="off"
+                       style="width:100%;padding:11px 14px;border:1.5px solid #334155;border-radius:10px;background:#0f172a;color:#f1f5f9;font-size:15px;outline:none;margin-bottom:14px;text-align:center;letter-spacing:2px;"
+                       oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                       onfocus="this.style.borderColor='#60a5fa'" onblur="this.style.borderColor='#334155'"
+                       onkeydown="if(event.key==='Enter') submitReset();" />
+            }
+            <div style="display:flex;gap:10px;">
+                <button onclick="closeResetModal()" style="flex:1;padding:11px;border:1.5px solid #334155;border-radius:10px;background:transparent;color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer;">
+                    Cancel
+                </button>
+                <button onclick="submitReset()" style="flex:1;padding:11px;border:none;border-radius:10px;background:#dc2626;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">
+                    <i class="fa-solid fa-rotate-left"></i> Reset Card
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Publish button -->
+    <div style="margin-top:10px;">
+        @if (Model.IsActive && !string.IsNullOrWhiteSpace(Model.Name))
+        {
+            <form method="post" action="/me/publish">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn" style="width:100%;background:#059669;border-color:#059669;"
+                        onclick="return confirm('Publish your card? It will be accessible at your public URL.')">
+                    <i class="fa-solid fa-globe"></i> @(Model.IsPublished ? "Re-Publish (Update Public Card)" : "Publish Card")
+                </button>
+            </form>
+        }
+        else if (!Model.IsActive)
+        {
+            <button class="btn" disabled style="width:100%;background:#334155;border-color:#334155;opacity:0.5;cursor:not-allowed;">
+                <i class="fa-solid fa-ban"></i> Card is Inactive — Cannot Publish
+            </button>
+            <p style="text-align:center;color:#fca5a5;font-size:11px;margin-top:6px;">
+                ⚠️ Activate your card first before publishing.
+            </p>
+        }
+        else
+        {
+            <button class="btn" disabled style="width:100%;background:#334155;border-color:#334155;opacity:0.5;cursor:not-allowed;">
+                <i class="fa-solid fa-ban"></i> No Content — Cannot Publish
+            </button>
+            <p style="text-align:center;color:#fca5a5;font-size:11px;margin-top:6px;">
+                ⚠️ Fill in your card details first before publishing.
+            </p>
+        }
+        @if (Model.IsPublished && TempData["Published"] != null)
+        {
+            <div style="margin-top:8px;background:rgba(5,150,105,0.15);border:1px solid rgba(5,150,105,0.3);border-radius:10px;padding:10px 14px;font-size:12px;color:#6ee7b7;word-break:break-all;">
+                ✅ Published: <a href="@TempData["Published"]" target="_blank" style="color:#34d399;">@TempData["Published"]</a>
+            </div>
+        }
+        @if (Model.IsPublished && TempData["Published"] == null)
+        {
+            <p style="text-align:center;color:rgba(255,255,255,0.35);font-size:11px;margin-top:6px;">
+                ✅ Card is published — edit and re-publish to update
+            </p>
+        }
     </div>
 </div>
 
@@ -201,15 +314,15 @@
         <!-- View counts -->
         <div class="stats-grid">
             <div class="stat-box total">
-                <div class="stat-num">@totalViews</div>
+                <div class="stat-num" id="statTotal">@totalViews</div>
                 <div class="stat-lbl">Total Views</div>
             </div>
             <div class="stat-box">
-                <div class="stat-num">@todayViews</div>
+                <div class="stat-num" id="statToday">@todayViews</div>
                 <div class="stat-lbl">Today</div>
             </div>
             <div class="stat-box">
-                <div class="stat-num">@weekViews</div>
+                <div class="stat-num" id="statWeek">@weekViews</div>
                 <div class="stat-lbl">Last 7 Days</div>
             </div>
         </div>
@@ -253,9 +366,16 @@
                     <div class="audit-row">
                         <div class="audit-dot @dotClass"></div>
                         <div>
+                            @{
+                                var auditPht = TimeZoneInfo.ConvertTimeFromUtc(
+                                    DateTime.SpecifyKind(entry.Timestamp, DateTimeKind.Utc),
+                                    TimeZoneInfo.GetSystemTimeZones()
+                                        .FirstOrDefault(z => z.Id == "Asia/Manila" || z.Id == "Singapore Standard Time")
+                                    ?? TimeZoneInfo.Utc);
+                            }
                             <p class="audit-action">@entry.Action</p>
                             <p class="audit-detail">@entry.Detail</p>
-                            <p class="audit-time">@entry.Timestamp.ToString("MMM d, yyyy h:mm tt") UTC</p>
+                            <p class="audit-time"><i class="fa-regular fa-clock" style="margin-right:3px;"></i>@auditPht.ToString("MMM d, yyyy h:mm tt") PHT</p>
                         </div>
                     </div>
                 }
@@ -278,8 +398,40 @@
         document.getElementById('outlookBtn').href = 'mailto:?subject=' + subject + '&body=' + body;
     })();
 
-    function openStats()  { document.getElementById('statsPanel').classList.add('open'); window.scrollTo(0,0); }
+    function openStats() {
+        document.getElementById('statsPanel').classList.add('open');
+        window.scrollTo(0,0);
+        // Fetch live stats so numbers are always fresh
+        fetch('/api/me/stats', { credentials: 'include' })
+            .then(function(r){ return r.ok ? r.json() : null; })
+            .then(function(d){
+                if (!d) return;
+                var t = document.getElementById('statTotal');
+                var td= document.getElementById('statToday');
+                var w = document.getElementById('statWeek');
+                if (t)  t.textContent  = d.total;
+                if (td) td.textContent = d.today;
+                if (w)  w.textContent  = d.week;
+            })
+            .catch(function(){});
+    }
     function closeStats() { document.getElementById('statsPanel').classList.remove('open'); }
+
+    function openResetModal() {
+        document.getElementById('resetModalOverlay').style.display = 'flex';
+        var pin = document.getElementById('resetPinInput');
+        if (pin) { pin.value = ''; setTimeout(function(){ pin.focus(); }, 100); }
+    }
+    function closeResetModal() {
+        document.getElementById('resetModalOverlay').style.display = 'none';
+    }
+    function submitReset() {
+        var pinInput = document.getElementById('resetPinInput');
+        var hidden   = document.getElementById('resetPinHidden');
+        if (pinInput && hidden) hidden.value = pinInput.value || '';
+        closeResetModal();
+        document.getElementById('resetForm').submit();
+    }
 
     function copyLink() {
         navigator.clipboard.writeText(cardUrl).then(function() {

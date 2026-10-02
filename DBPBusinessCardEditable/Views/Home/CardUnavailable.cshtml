@@ -5,31 +5,125 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Card Unavailable</title>
+    <title>Card Unavailable — DBP</title>
     <link rel="icon" type="image/png" href="/dbp-icon.png" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; }
-        .bg { position: fixed; inset: 0; z-index: 0; background: linear-gradient(155deg, rgba(10,25,70,0.95) 0%, rgba(30,64,175,0.90) 45%, rgba(15,40,100,0.97) 100%), url('/bg.png') center/cover no-repeat; }
-        .card { position: relative; z-index: 1; background: #fff; border-radius: 20px; padding: 40px 28px; max-width: 360px; width: 100%; text-align: center; box-shadow: 0 16px 48px rgba(0,0,0,0.35); }
-        .icon { font-size: 48px; color: #94a3b8; margin-bottom: 16px; }
-        img.logo { width: 56px; height: 56px; object-fit: contain; margin-bottom: 16px; display: block; margin-left: auto; margin-right: auto; }
-        h1 { color: #0f172a; font-size: 20px; font-weight: 800; margin-bottom: 8px; }
-        p  { color: #64748b; font-size: 13px; margin-bottom: 24px; }
-        .divider { height: 1px; background: #f1f5f9; margin: 20px 0; }
-        .btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 13px; border-radius: 11px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; font-size: 14px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 14px rgba(37,99,235,0.3); }
+        body {
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+        .bg {
+            position: fixed; inset: 0; z-index: 0;
+            background: linear-gradient(155deg, rgba(10,25,70,0.95) 0%, rgba(30,64,175,0.90) 45%, rgba(15,40,100,0.97) 100%),
+                        url('/bg.png') center/cover no-repeat;
+        }
+        .card {
+            position: relative; z-index: 1;
+            background: #fff;
+            border-radius: 20px;
+            padding: 40px 28px 36px;
+            max-width: 380px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            border-top: 5px solid #2563eb;
+        }
+        .logo-wrap {
+            margin-bottom: 20px;
+        }
+        .logo-wrap img {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            padding: 5px 12px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #0f172a;
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+        .sub {
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+        .divider { height: 1px; background: #f1f5f9; margin: 0 0 24px; }
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 13px;
+            border-radius: 11px;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 4px 14px rgba(37,99,235,0.3);
+            transition: opacity 0.15s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .note {
+            color: #94a3b8;
+            font-size: 11px;
+            margin-top: 16px;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
 <div class="bg"></div>
 <div class="card">
-    <img src="/dbp-logo.png" alt="DBP" class="logo" />
-    <div class="icon"><i class="fa-solid fa-circle-pause"></i></div>
+    <div class="logo-wrap">
+        <img src="/dbp-logo.png" alt="Development Bank of the Philippines" />
+    </div>
+    <div class="badge">
+        <i class="fa-solid fa-circle-xmark"></i> Card Inactive
+    </div>
     <h1>Card Unavailable</h1>
-    <p>This digital business card is currently inactive. Please contact the cardholder directly.</p>
+    <p class="sub">
+        @if (Model.IsExpired)
+        {
+            <text>This digital business card has expired. The cardholder's ATM card has reached its expiry date.</text>
+        }
+        else
+        {
+            <text>This digital business card has been temporarily deactivated by its owner.
+            Please contact the cardholder directly for their information.</text>
+        }
+    </p>
     <div class="divider"></div>
-    <a href="/" class="btn"><i class="fa-solid fa-house"></i> Back to Home</a>
+    <a href="/" class="btn">
+        <i class="fa-solid fa-house"></i> Back to Home
+    </a>
+    <p class="note">
+        If you own this card, <a href="/login" style="color:#2563eb;text-decoration:none;font-weight:700;">sign in</a> to reactivate it.
+    </p>
 </div>
 </body>
 </html>

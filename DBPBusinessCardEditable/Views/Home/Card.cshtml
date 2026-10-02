@@ -68,13 +68,8 @@
             --shadow: 0 16px 48px rgba(0,0,0,0.8);
         }
         html.dark .page-bg {
-            background: rgba(0,0,0,0.82);
-        }
-        html.dark .page-bg::after {
-            content: ''; position: absolute; inset: 0;
-            background: url('/bg.png') center/cover no-repeat;
-            opacity: 0.18;
-            z-index: -1;
+            background: linear-gradient(155deg, rgba(3,7,25,0.90) 0%, rgba(8,18,45,0.85) 45%, rgba(2,6,20,0.92) 100%),
+                        url('/bg.png') center/cover no-repeat;
         }
         html.dark .card-face { background: var(--card-bg); }
         html.dark .card-face::before { background: linear-gradient(90deg, #333, #666, #999); }

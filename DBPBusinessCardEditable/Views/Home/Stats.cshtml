@@ -96,6 +96,108 @@
         }
     </div>
 
+    <!-- Viewer Log -->
+    @if (Model.ViewLog != null && Model.ViewLog.Count > 0)
+    {
+        <div class="card">
+            <h2><i class="fa-solid fa-eye" style="color:#2563eb;margin-right:8px;"></i>Viewer Log</h2>
+            <p class="sub" style="margin-bottom:16px;">Recent visitors — times shown in Philippine Standard Time (PHT, UTC+8)</p>
+
+            <!-- Summary badges -->
+            @{
+                int qrCount     = Model.ViewLog.Count(vv => vv.ScanType == "qr");
+                int directCount = Model.ViewLog.Count(vv => vv.ScanType != "qr");
+            }
+            <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+                <span style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;">
+                    <i class="fa-solid fa-qrcode" style="margin-right:4px;"></i>@qrCount QR Scan@(qrCount != 1 ? "s" : "")
+                </span>
+                <span style="background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;">
+                    <i class="fa-solid fa-link" style="margin-right:4px;"></i>@directCount Direct Visit@(directCount != 1 ? "s" : "")
+                </span>
+            </div>
+
+            <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:560px;">
+                <thead>
+                    <tr style="background:#f8fafc;border-bottom:2px solid #e5e7eb;">
+                        <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b;">#</th>
+                        <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b;">Type</th>
+                        <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b;">Date &amp; Time (PHT)</th>
+                        <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b;">IP Address</th>
+                        <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b;">Device</th>
+                        <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b;">Browser / OS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{ int viewNum = 1;
+                       var pht = TimeZoneInfo.GetSystemTimeZones()
+                           .FirstOrDefault(z => z.Id == "Asia/Manila" || z.Id == "Singapore Standard Time")
+                           ?? TimeZoneInfo.Utc; }
+                    @foreach (var v in Model.ViewLog.Take(100))
+                    {
+                        // Convert UTC → PHT — force DateTimeKind.Utc before converting
+                        DateTime utcDt;
+                        if (DateTime.TryParse(v.Timestamp, null, System.Globalization.DateTimeStyles.RoundtripKind, out var parsedDt))
+                            utcDt = DateTime.SpecifyKind(parsedDt, DateTimeKind.Utc);
+                        else
+                            utcDt = DateTime.UtcNow;
+                        var phtDt   = TimeZoneInfo.ConvertTimeFromUtc(utcDt, pht);
+                        var tsLabel = phtDt.ToString("MMM d, yyyy h:mm tt") + " PHT";
+
+                        var ua = v.UserAgent ?? "";
+
+                        // Device type
+                        var isPhone  = ua.Contains("iPhone") || (ua.Contains("Android") && ua.Contains("Mobile"));
+                        var isTablet = ua.Contains("iPad")   || (ua.Contains("Android") && !ua.Contains("Mobile"));
+                        var devIcon  = isPhone ? "📱" : isTablet ? "📟" : "🖥️";
+                        var devLabel = isPhone ? "Mobile" : isTablet ? "Tablet" : "Desktop";
+
+                        // OS
+                        var os = ua.Contains("Windows NT 10") ? "Windows 10/11" :
+                                 ua.Contains("Windows NT 6")  ? "Windows 7/8"   :
+                                 ua.Contains("Mac OS X")      ? "macOS"          :
+                                 ua.Contains("Android")       ? "Android"        :
+                                 ua.Contains("iPhone") || ua.Contains("iPad") ? "iOS" :
+                                 ua.Contains("Linux")         ? "Linux"          : "Unknown OS";
+
+                        // Browser
+                        var browser = ua.Contains("Edg/")     ? "Edge"    :
+                                      ua.Contains("OPR/") || ua.Contains("Opera") ? "Opera" :
+                                      ua.Contains("Chrome/")  ? "Chrome"  :
+                                      ua.Contains("Firefox/") ? "Firefox" :
+                                      ua.Contains("Safari/")  ? "Safari"  : "Other";
+
+                        // Scan type badge
+                        var isQr      = v.ScanType == "qr";
+                        var typeBadge = isQr
+                            ? "<span style='background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;'><i class='fa-solid fa-qrcode' style='margin-right:3px;'></i>QR</span>"
+                            : "<span style='background:#f0fdf4;color:#15803d;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;'><i class='fa-solid fa-link' style='margin-right:3px;'></i>Direct</span>";
+
+                        var ipDisplay = string.IsNullOrWhiteSpace(v.IpAddress) || v.IpAddress == "Unknown"
+                                        ? "<span style='color:#cbd5e1;'>—</span>" : $"<code style='font-size:11px;'>{v.IpAddress}</code>";
+
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:8px 10px;color:#94a3b8;font-size:11px;">@viewNum</td>
+                            <td style="padding:8px 10px;">@Html.Raw(typeBadge)</td>
+                            <td style="padding:8px 10px;color:#374151;white-space:nowrap;font-size:11px;">@tsLabel</td>
+                            <td style="padding:8px 10px;">@Html.Raw(ipDisplay)</td>
+                            <td style="padding:8px 10px;color:#64748b;white-space:nowrap;">@devIcon @devLabel</td>
+                            <td style="padding:8px 10px;color:#64748b;">@browser · @os</td>
+                        </tr>
+                        viewNum++;
+                    }
+                </tbody>
+            </table>
+            </div>
+
+            @if (Model.ViewLog.Count > 100)
+            {
+                <p style="text-align:center;color:#94a3b8;font-size:11px;padding:10px 0;">Showing 100 most recent of @Model.ViewLog.Count total views</p>
+            }
+        </div>
+    }
+
     <!-- Audit Log -->
     <div class="card">
         <h2><i class="fa-solid fa-clock-rotate-left" style="color:#2563eb;margin-right:8px;"></i>Audit Log</h2>
@@ -130,7 +232,14 @@
                     <div>
                         <p class="audit-action">@entry.Action</p>
                         <p class="audit-detail">@entry.Detail</p>
-                        <p class="audit-time"><i class="fa-regular fa-clock"></i> @entry.Timestamp.ToString("MMM d, yyyy h:mm tt") UTC</p>
+                        @{
+                            var auditPhtStats = TimeZoneInfo.ConvertTimeFromUtc(
+                                DateTime.SpecifyKind(entry.Timestamp, DateTimeKind.Utc),
+                                TimeZoneInfo.GetSystemTimeZones()
+                                    .FirstOrDefault(z => z.Id == "Asia/Manila" || z.Id == "Singapore Standard Time")
+                                ?? TimeZoneInfo.Utc);
+                        }
+                        <p class="audit-time"><i class="fa-regular fa-clock"></i> @auditPhtStats.ToString("MMMM d, yyyy — h:mm tt") PHT</p>
                     </div>
                 </div>
             }

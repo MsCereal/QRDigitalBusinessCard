@@ -6,6 +6,9 @@ obj/
 *.suo
 publish_output/
 
+## Local dev overrides — never commit these (may contain AD credentials)
+appsettings.Local.json
+
 ## Logs
 *.log
 logs/

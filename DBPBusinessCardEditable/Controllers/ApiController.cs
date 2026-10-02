@@ -1,4 +1,5 @@
 using DBPBusinessCardEditable.Models;
+using DBPBusinessCardEditable.Models;
 using DBPBusinessCardEditable.Services;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -12,8 +13,8 @@ namespace DBPBusinessCardEditable.Controllers
     [Produces("application/json")]
     public class CardsApiController : ControllerBase
     {
-        private readonly CardProfileService _service;
-        public CardsApiController(CardProfileService service) => _service = service;
+        private readonly SqliteCardService _service;
+        public CardsApiController(SqliteCardService service) => _service = service;
 
         private bool IsAuthorized()
         {
@@ -89,13 +90,17 @@ namespace DBPBusinessCardEditable.Controllers
             if (string.IsNullOrWhiteSpace(model.Name))
                 return BadRequest(new { error = "name is required." });
 
+            // Use EmpId as SamAccountName if not supplied (API creates cards without a Windows session)
+            if (string.IsNullOrWhiteSpace(model.SamAccountName))
+                model.SamAccountName = model.EmpId.Trim();
+
             _service.Save(model);
             var saved = _service.Get(model.EmpId.Trim());
             return Ok(new
             {
                 success = true,
                 message = $"Card for {model.EmpId} saved.",
-                cardUrl = $"{Request.Scheme}://{Request.Host}/card/{saved.CardToken}"
+                cardUrl = $"{Request.Scheme}://{Request.Host}/card/{saved!.CardToken}"
             });
         }
 
@@ -111,7 +116,7 @@ namespace DBPBusinessCardEditable.Controllers
             var card = _service.Get(empId);
             if (card == null)
                 return NotFound(new { error = $"No card found for Employee ID: {empId}" });
-            _service.Delete(empId);
+            _service.Delete(card.SamAccountName); // delete by SAM (primary key)
             return Ok(new { success = true, message = $"Card for {empId} deleted." });
         }
     }

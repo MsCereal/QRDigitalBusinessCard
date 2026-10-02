@@ -8,18 +8,17 @@ namespace DBPBusinessCardEditable.Controllers
 {
     public class QRController : Controller
     {
-        private readonly CardProfileService _service;
-        public QRController(CardProfileService service) => _service = service;
+        private readonly SqliteCardService _service;
+        public QRController(SqliteCardService service) => _service = service;
 
         // GET /QR/Generate/{empId} — returns QR PNG encoding the token-based card URL
         [HttpGet("/QR/Generate/{empId}")]
         public IActionResult Generate(string empId)
         {
-            var profile = _service.Get(empId);
-            string token = profile?.CardToken;
-            // Fall back to empId in URL if token not yet assigned (shouldn't happen after save)
-            string cardPath = !string.IsNullOrWhiteSpace(token) ? token : empId;
-            string url = $"{Request.Scheme}://{Request.Host}/card/{cardPath}";
+            var profile  = _service.Get(empId);
+            var cardPath = !string.IsNullOrWhiteSpace(profile?.CardToken) ? profile.CardToken : empId;
+            // Add ?src=qr so HomeController knows this view came from a QR scan
+            var url = $"{Request.Scheme}://{Request.Host}/card/{cardPath}?src=qr";
             return BuildQrImage(url);
         }
 

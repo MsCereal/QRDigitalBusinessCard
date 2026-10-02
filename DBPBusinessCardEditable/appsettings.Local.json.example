@@ -1,0 +1,11 @@
+{
+  "Directory": {
+    "Host": "dc01.corp.example.com",
+    "Port": 389,
+    "UseLdaps": false,
+    "BaseDn": "DC=corp,DC=example,DC=com",
+    "ServiceAccountUser": "CORP\\svc-bizcard-ro",
+    "ServiceAccountPassword": "",
+    "CacheSeconds": 300
+  }
+}
