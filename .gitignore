@@ -12,6 +12,9 @@ appsettings.Local.json
 ## bizcard-handoff config — contains the AD service account password, keep out of git
 bizcard-handoff/appsettings.json
 
+## DBPQRPermanent is its own separate git repo — not backed up as part of this one
+DBPQRPermanent/
+
 ## Logs
 *.log
 logs/
