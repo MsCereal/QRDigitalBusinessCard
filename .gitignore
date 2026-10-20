@@ -9,6 +9,9 @@ publish_output/
 ## Local dev overrides — never commit these (may contain AD credentials)
 appsettings.Local.json
 
+## bizcard-handoff config — contains the AD service account password, keep out of git
+bizcard-handoff/appsettings.json
+
 ## Logs
 *.log
 logs/

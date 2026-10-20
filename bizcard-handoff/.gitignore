@@ -1,0 +1,8 @@
+bin/
+obj/
+.vs/
+*.user
+
+# never commit real service-account settings
+appsettings.Production.json
+appsettings.Local.json

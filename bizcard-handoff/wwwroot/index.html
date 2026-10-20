@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BizCard</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #eef1f5;
+      font: 16px/1.5 "Segoe UI", system-ui, sans-serif;
+      color: #1a1d21;
+    }
+    .card {
+      width: min(28rem, 92vw);
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgb(0 0 0 / 12%);
+      padding: 1.75rem;
+      display: flex;
+      gap: 1.25rem;
+      align-items: flex-start;
+    }
+    .photo {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #d7dce3;
+      flex: 0 0 auto;
+    }
+    .initials {
+      display: grid;
+      place-items: center;
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: #55606e;
+    }
+    h1 { font-size: 1.35rem; margin: 0 0 .15rem; }
+    .role { margin: 0; color: #55606e; }
+    dl { margin: 1rem 0 0; display: grid; grid-template-columns: auto 1fr; gap: .35rem .75rem; }
+    dt { color: #55606e; font-size: .875rem; }
+    dd { margin: 0; font-size: .875rem; overflow-wrap: anywhere; }
+    .account { margin: 1rem 0 0; font-size: .8125rem; color: #6b7683; }
+    .problem { color: #a3341f; }
+    a { color: #1a5fb4; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #16191d; color: #e8eaed; }
+      .card { background: #22262b; box-shadow: none; }
+      .role, dt, .account, .initials { color: #a4adb8; }
+      a { color: #8ab4f8; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card" aria-labelledby="name">
+    <div id="avatar" class="photo initials" aria-hidden="true"></div>
+    <div style="flex:1 1 auto">
+      <h1 id="name">Signing you in&hellip;</h1>
+      <p class="role" id="role"></p>
+      <dl id="details"></dl>
+      <p class="account" id="account"></p>
+    </div>
+  </main>
+
+  <script>
+    const text = (v) => v ?? "\u2014";
+
+    function initials(name) {
+      if (!name) return "?";
+      return name.trim().split(/\s+/).slice(0, 2).map(p => p[0].toUpperCase()).join("");
+    }
+
+    function row(label, value, href) {
+      if (!value) return "";
+      const shown = href
+        ? `<a href="${href}${encodeURIComponent(value)}">${text(value)}</a>`
+        : text(value);
+      return `<dt>${label}</dt><dd>${shown}</dd>`;
+    }
+
+    async function load() {
+      const name = document.getElementById("name");
+      const role = document.getElementById("role");
+      const details = document.getElementById("details");
+      const account = document.getElementById("account");
+      const avatar = document.getElementById("avatar");
+
+      let me;
+      try {
+        const res = await fetch("/api/me", { credentials: "include" });
+        if (!res.ok) throw new Error(`/api/me returned ${res.status}`);
+        me = await res.json();
+      } catch (err) {
+        name.textContent = "Could not sign you in";
+        role.className = "role problem";
+        role.textContent = err.message;
+        return;
+      }
+
+      const label = me.displayName ?? me.samAccountName ?? "Unknown user";
+      name.textContent = label;
+      role.textContent = [me.title, me.department].filter(Boolean).join(" \u00b7 ");
+
+      details.innerHTML =
+        row("Email", me.mail, "mailto:") +
+        row("Phone", me.telephoneNumber, "tel:");
+
+      account.textContent = `Signed in as ${me.samAccountName} via ${me.authenticationType}`;
+
+      if (!me.directoryConfigured) {
+        role.className = "role problem";
+        role.textContent = "Directory not configured \u2014 showing ticket identity only.";
+      } else if (!me.found) {
+        role.className = "role problem";
+        role.textContent = "No matching Active Directory entry.";
+      }
+
+      if (me.hasPhoto) {
+        const img = document.createElement("img");
+        img.className = "photo";
+        img.src = "/api/me/photo";
+        img.alt = `Photo of ${label}`;
+        img.onerror = () => { avatar.textContent = initials(label); };
+        avatar.replaceWith(img);
+      } else {
+        avatar.textContent = initials(label);
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

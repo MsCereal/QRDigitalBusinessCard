@@ -258,11 +258,64 @@
             margin-top: 32px;
             letter-spacing: 0.5px;
         }
+
+        /* ── Restricted access legal banner (top) ── */
+        .legal-banner {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto 32px;
+            padding: 18px 22px;
+            text-align: left;
+            background: #b91c1c;
+            border: 1px solid #dc2626;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(185, 28, 28, 0.45);
+        }
+        .legal-banner .legal-title {
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .legal-banner p {
+            color: #ffffff;
+            font-size: 12px;
+            line-height: 1.7;
+            margin-bottom: 9px;
+        }
+        .legal-banner p:last-child { margin-bottom: 0; }
+        .legal-banner strong { color: #fde68a; font-weight: 800; }
     </style>
 </head>
 <body>
 
 <div class="bg"></div>
+
+<div class="legal-banner">
+    <div class="legal-title">&#9888; Restricted Access — Authorized Employees Only</div>
+    <p>
+        All employees must ensure that their digital business card information is accurate and
+        authorized. Falsification or unauthorized alteration of official information, including
+        names and positions, is strictly prohibited.
+    </p>
+    <p>
+        All system activities and changes may be logged and audited. Violations may result in
+        disciplinary action, including termination, and civil or criminal liability where
+        applicable, under <strong>Article 297 of the Labor Code, Articles 171–172 of the Revised
+        Penal Code, and Articles 19–21 of the Civil Code of the Philippines.</strong>
+    </p>
+    <p>
+        By logging in, you acknowledge your responsibility for the accuracy of your information
+        and your compliance with company policies and applicable laws.
+    </p>
+</div>
 
 <div class="content">
 

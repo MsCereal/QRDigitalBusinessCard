@@ -1,0 +1,15 @@
+# Normalize line endings on commit; check out native per-platform.
+* text=auto
+
+*.cs      text
+*.csproj  text
+*.json    text
+*.md      text
+*.html    text
+*.css     text
+*.js      text
+
+# Treat AD photos and other binaries as binary if they ever land here.
+*.jpg  binary
+*.jpeg binary
+*.png  binary

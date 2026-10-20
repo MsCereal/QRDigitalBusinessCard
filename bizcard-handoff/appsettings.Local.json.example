@@ -1,0 +1,12 @@
+{
+  "_comment": "Copy this file to appsettings.Local.json and fill in your values. appsettings.Local.json is gitignored. Do NOT put the service-account password here in a shared checkout -- use `dotnet user-secrets` or the Directory__ServiceAccountPassword env var instead.",
+  "Directory": {
+    "Host": "dc01.corp.example.com",
+    "Port": 389,
+    "UseLdaps": false,
+    "BaseDn": "DC=corp,DC=example,DC=com",
+    "ServiceAccountUser": "CORP\\svc-bizcard-ro",
+    "ServiceAccountPassword": "",
+    "CacheSeconds": 300
+  }
+}
