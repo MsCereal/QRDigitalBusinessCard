@@ -6,60 +6,72 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DBP — Sign In</title>
+    <title>e-Ugnay — Sign In</title>
     <link rel="icon" type="image/png" href="/dbp-icon.png" />
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, sans-serif; min-height: 100vh; display: flex; align-items: center;
-               justify-content: center; padding: 20px;
+        body { font-family: Arial, sans-serif; min-height: 100vh; display: flex; flex-direction: column;
+               align-items: center; justify-content: center; padding: 20px;
                background: linear-gradient(155deg, rgba(10,25,70,0.96) 0%, rgba(30,64,175,0.92) 45%, rgba(15,40,100,0.98) 100%), url('/bg.png') center/cover no-repeat; }
         .box { background: rgba(255,255,255,0.06); backdrop-filter: blur(12px);
                border: 1px solid rgba(255,255,255,0.12); border-radius: 20px;
-               padding: 40px 32px; max-width: 380px; width: 100%; text-align: center; }
-        .logo { width: 72px; margin-bottom: 16px; }
-        .org  { color: rgba(255,255,255,0.5); font-size: 11px; letter-spacing: 1.5px;
-                text-transform: uppercase; font-weight: 700; margin-bottom: 8px; }
-        h1   { color: #fff; font-size: 24px; font-weight: 800; margin-bottom: 6px; }
-        .sub { color: rgba(255,255,255,0.45); font-size: 13px; margin-bottom: 28px; line-height: 1.5; }
-        label { display: block; text-align: left; color: rgba(255,255,255,0.6);
-                font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+               padding: 26px clamp(22px, 4vw, 40px); max-width: 600px; width: 100%; text-align: center; }
+        .logo { width: 60px; margin-bottom: 10px; }
+        .org  { color: #ffffff; font-size: 12px; letter-spacing: 1.5px;
+                text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
+        h1   { color: #fff; font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+        .sub { color: #ffffff; font-size: 14px; margin-bottom: 18px; line-height: 1.45; }
+        label { display: block; text-align: left; color: #ffffff;
+                font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
                 text-transform: uppercase; margin-bottom: 6px; }
         input[type=text] {
-            width: 100%; padding: 13px 16px; background: rgba(255,255,255,0.08);
+            width: 100%; padding: 11px 16px; background: rgba(255,255,255,0.08);
             border: 1.5px solid rgba(255,255,255,0.15); border-radius: 11px;
             color: #fff; font-size: 15px; font-weight: 700; outline: none;
             letter-spacing: 0.5px; transition: border-color 0.15s;
             margin-bottom: 6px;
         }
-        input[type=text]::placeholder { color: rgba(255,255,255,0.25); font-weight: 400; }
+        input[type=text]::placeholder { color: rgba(255,255,255,0.6); font-weight: 400; }
         input[type=text]:focus { border-color: #60a5fa; background: rgba(255,255,255,0.12); }
-        .hint { color: rgba(255,255,255,0.35); font-size: 11px; text-align: left; margin-bottom: 20px; }
-        .btn  { width: 100%; padding: 14px; background: #2563eb; border: none;
+        .hint { color: #bfdbfe; font-size: 13px; text-align: left; margin-bottom: 14px; }
+        .btn  { width: 100%; padding: 12px; background: #2563eb; border: none;
                 border-radius: 11px; color: #fff; font-size: 15px; font-weight: 800;
                 cursor: pointer; transition: background 0.15s; }
         .btn:hover { background: #1d4ed8; }
         .error { background: rgba(220,38,38,0.15); border: 1px solid rgba(220,38,38,0.3);
                  color: #fca5a5; font-size: 13px; border-radius: 9px;
                  padding: 10px 14px; margin-bottom: 18px; text-align: left; }
-        .note  { color: rgba(255,255,255,0.25); font-size: 11px; margin-top: 20px; line-height: 1.6; }
-        .legal { margin-top: 22px; padding: 16px 16px; text-align: left;
+        .note  { color: #bfdbfe; font-size: 13px; margin-top: 12px; line-height: 1.5; }
+        .legal { margin-top: 16px; width: 100%; max-width: 600px; padding: 12px 16px; text-align: left;
                  background: rgba(220,38,38,0.10); border: 1px solid rgba(248,113,113,0.30);
                  border-radius: 11px; }
-        .legal-title { color: #fca5a5; font-size: 11px; font-weight: 800; letter-spacing: 0.5px;
-                       text-transform: uppercase; margin-bottom: 10px; display: flex;
+        .legal-title { color: #fca5a5; font-size: 12px; font-weight: 800; letter-spacing: 0.5px;
+                       text-transform: uppercase; margin-bottom: 6px; display: flex;
                        align-items: center; gap: 7px; }
-        .legal p { color: rgba(255,255,255,0.55); font-size: 11px; line-height: 1.65;
-                   margin-bottom: 9px; }
+        .legal p { color: #ffffff; font-size: 12px; line-height: 1.55;
+                   margin-bottom: 6px; }
         .legal p:last-child { margin-bottom: 0; }
-        .legal strong { color: rgba(255,255,255,0.80); font-weight: 700; }
+        .legal strong { color: #fde68a; font-weight: 800; }
+
+        /* Fade in/out (space stays reserved so the card does not resize) */
+        .legal { position: relative; padding-right: 44px; opacity: 1; transition: opacity 0.5s ease; }
+        .legal.is-hidden { opacity: 0; pointer-events: none; }
+        .legal.is-closed { display: none; }
+        .legal-close { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px;
+                       border: none; border-radius: 50%; background: rgba(255,255,255,0.12);
+                       color: #fff; font-size: 16px; line-height: 1; cursor: pointer;
+                       display: flex; align-items: center; justify-content: center;
+                       transition: background 0.15s; }
+        .legal-close:hover, .legal-close:focus-visible { background: rgba(255,255,255,0.28); outline: none; }
+        @@media (prefers-reduced-motion: reduce) { .legal { transition: none; } }
     </style>
 </head>
-<body>
+<body class="sf-page">
 <div class="box">
     <img src="/dbp-logo.png" alt="DBP" class="logo" />
     <p class="org">Development Bank of the Philippines</p>
     <h1>Sign In</h1>
-    <p class="sub">Enter your domain username to access your digital business card.</p>
+    <p class="sub">Enter your domain username to access your e-Ugnay digital business card.</p>
 
     @if (ViewBag.Error != null)
     {
@@ -82,7 +94,7 @@
                autocorrect="off"
                autocapitalize="off"
                required />
-        <p class="hint">Your Windows login name (without DOMAIN\)</p>
+        <p class="hint">Type only your Windows username (example: jcruz). Do not type the domain or the backslash.</p>
         <button type="submit" class="btn">Sign In &#8594;</button>
     </form>
 
@@ -90,25 +102,46 @@
         Your Windows session is used to verify your identity.<br/>
         No password is sent to or stored by this application.
     </p>
-
-    <div class="legal">
-        <div class="legal-title">&#9888; Restricted Access — Authorized Employees Only</div>
-        <p>
-            All employees must ensure that their digital business card information is accurate and
-            authorized. Falsification or unauthorized alteration of official information, including
-            names and positions, is strictly prohibited.
-        </p>
-        <p>
-            All system activities and changes may be logged and audited. Violations may result in
-            disciplinary action, including termination, and civil or criminal liability where
-            applicable, under <strong>Article 297 of the Labor Code, Articles 171–172 of the Revised
-            Penal Code, and Articles 19–21 of the Civil Code of the Philippines.</strong>
-        </p>
-        <p>
-            By logging in, you acknowledge your responsibility for the accuracy of your information
-            and your compliance with company policies and applicable laws.
-        </p>
-    </div>
 </div>
+
+<!-- Restricted access notice: separate from the Sign In card, shown below it -->
+<div class="legal" id="legalBanner" role="region" aria-label="Restricted access notice">
+    <button type="button" class="legal-close" id="legalClose" aria-label="Close notice" title="Close">&times;</button>
+    <div class="legal-title">&#9888; Restricted Access — Authorized Employees Only</div>
+    <p>
+        All employees must ensure that their digital business card information is accurate and
+        authorized. Falsification or unauthorized alteration of official information, including
+        names and positions, is strictly prohibited.
+    </p>
+    <p>
+        All system activities and changes may be logged and audited. Violations may result in
+        disciplinary action, including termination, and civil or criminal liability where
+        applicable, under <strong>Article 297 of the Labor Code, Articles 171–172 of the Revised
+        Penal Code, and Articles 19–21 of the Civil Code of the Philippines.</strong>
+    </p>
+    <p>
+        By logging in, you acknowledge your responsibility for the accuracy of your information
+        and your compliance with company policies and applicable laws.
+    </p>
+</div>
+
+<script>
+// Restricted-access notice: always shown (no blinking) until the user closes it (X).
+// Closing is remembered for this browser session.
+(function () {
+    var banner = document.getElementById('legalBanner');
+    var close  = document.getElementById('legalClose');
+    if (!banner || !close) return;
+
+    var KEY = 'dbpLegalClosed';
+    try { if (sessionStorage.getItem(KEY) === '1') { banner.classList.add('is-closed'); return; } } catch (e) {}
+
+    close.addEventListener('click', function () {
+        banner.classList.add('is-closed');
+        try { sessionStorage.setItem(KEY, '1'); } catch (e) {}
+    });
+})();
+</script>
+@await Html.PartialAsync("_SiteFooter")
 </body>
 </html>

@@ -19,6 +19,11 @@ public class MeController(
     PublishService publisher,
     EmailService email) : Controller
 {
+    // Admin approval for Title/Department/Org/Office edits.
+    // false = users edit freely, admin review is idle (code and pages kept intact).
+    // Set to true to bring the approval workflow back.
+    private const bool RequireAdminApproval = false;
+
     // GET /me — redirect to edit
     [HttpGet("/me")]
     public IActionResult Index() => RedirectToAction("Edit");
@@ -31,7 +36,16 @@ public class MeController(
         var profile = cards.GetBySam(sam);
 
         if (profile is not null)
+        {
+            // PIN is optional. Only cards that HAVE a PIN ask for it, and they ask BEFORE the form opens.
+            if (!string.IsNullOrWhiteSpace(profile.CardPin))
+            {
+                if (!PinSession.IsUnlocked(HttpContext.Session, sam))
+                    return View("~/Views/Home/PinGate.cshtml", profile);
+                PinSession.Unlock(HttpContext.Session, sam);   // keep the unlock fresh while they work
+            }
             return View("~/Views/Home/Edit.cshtml", profile);
+        }
 
         // New card — pre-fill from AD server-side (no client fetch needed)
         profile = new CardProfile { SamAccountName = sam, IsActive = true };
@@ -50,11 +64,34 @@ public class MeController(
         return View("~/Views/Home/Edit.cshtml", profile);
     }
 
+    // POST /me/pin — enter the PIN to open the edit form (only for cards that have a PIN)
+    [HttpPost("/me/pin")]
+    [ValidateAntiForgeryToken]
+    public IActionResult UnlockWithPin(string? pin)
+    {
+        var sam  = HttpContext.Session.GetString("SAM")!;
+        var card = cards.GetBySam(sam);
+        if (card is null || string.IsNullOrWhiteSpace(card.CardPin))
+            return RedirectToAction("Edit");               // no PIN on this card: nothing to enter
+
+        var entered = (pin ?? "").Trim();
+        if (PinSession.TryVerify(sam, () => cards.VerifyPin(sam, entered), out var wait))
+        {
+            PinSession.Unlock(HttpContext.Session, sam);
+            return RedirectToAction("Edit");
+        }
+        TempData["PinError"] = wait > TimeSpan.Zero
+            ? PinSession.LockoutMessage(wait)
+            : "Incorrect PIN. Please try again.";
+        return View("~/Views/Home/PinGate.cshtml", card);
+    }
+
     // POST /me/save
     [HttpPost("/me/save")]
     [ValidateAntiForgeryToken]
     public IActionResult Save(CardProfile model, bool resetPin = false,
-        [FromForm(Name = "CardExpiryInput")] string? cardExpiryInput = null)
+        [FromForm(Name = "CardExpiryInput")] string? cardExpiryInput = null,
+        [FromForm(Name = "NewPin")] string? newPin = null)
     {
         var sam = HttpContext.Session.GetString("SAM")!;
         model.SamAccountName = sam;
@@ -65,7 +102,8 @@ public class MeController(
             var parts = cardExpiryInput.Trim().Split('/');
             if (parts.Length == 2
                 && int.TryParse(parts[0], out var mm) && mm >= 1 && mm <= 12
-                && int.TryParse(parts[1], out var yy))
+                && parts[1].Trim().Length == 2                       // two-digit year only (e.g. 28)
+                && int.TryParse(parts[1], out var yy) && yy >= 0 && yy <= 99)
             {
                 var fullYear = yy < 100 ? 2000 + yy : yy;
                 // Build end-of-month in PHT (UTC+8), then convert to UTC properly
@@ -81,8 +119,7 @@ public class MeController(
             }
             else
             {
-                TempData["Error"] = "ATM Card Expiry must be in MM/YY format (e.g. 12/28).";
-                return View("~/Views/Home/Edit.cshtml", model);
+                return ShowFormAgain(model, "ATM Card Expiry must be in MM/YY format (e.g. 12/28).");
             }
         }
         else
@@ -95,60 +132,111 @@ public class MeController(
         // ── Validation ──────────────────────────────────────────────────────
         if (string.IsNullOrWhiteSpace(model.EmpId))
         {
-            TempData["Error"] = "Employee ID is required.";
-            return View("~/Views/Home/Edit.cshtml", model);
+            return ShowFormAgain(model, "Employee ID is required.");
         }
         if (!System.Text.RegularExpressions.Regex.IsMatch(
             model.EmpId.Trim(), @"^\d{7}-[A-Za-z]{3}$"))
         {
-            TempData["Error"] = "Employee ID must be in the format: 7 digits – 3 letters (e.g. 0000001-DBP).";
-            return View("~/Views/Home/Edit.cshtml", model);
+            return ShowFormAgain(model, "Employee ID must be in the format: 7 digits – 3 letters (e.g. 0000001-DBP).");
         }
         if (string.IsNullOrWhiteSpace(model.Name))
         {
-            TempData["Error"] = "Full Name is required.";
-            return View("~/Views/Home/Edit.cshtml", model);
+            return ShowFormAgain(model, "Full Name is required.");
         }
         // EmpId uniqueness — no one else can have the same EmpId
         if (cards.EmpIdExists(model.EmpId.Trim(), sam))
         {
-            TempData["Error"] = "That Employee ID is already registered to another account.";
-            return View("~/Views/Home/Edit.cshtml", model);
+            return ShowFormAgain(model, "That Employee ID is already registered to another account.");
         }
 
-        // ── PIN handling ─────────────────────────────────────────────────────
-        var existing = cards.GetBySam(sam);
+        // ── Links: only real web addresses ("github.com/jcruz" becomes "https://github.com/jcruz") ──
+        if (!SafeLinks.TryNormalizeWebUrl(model.GitHub, out var gitHub))
+            return ShowFormAgain(model, "GitHub must be a web address, for example https://github.com/yourname");
+        if (!SafeLinks.TryNormalizeWebUrl(model.LinkedIn, out var linkedIn))
+            return ShowFormAgain(model, "LinkedIn must be a web address, for example https://www.linkedin.com/in/yourname");
+        if (!SafeLinks.TryNormalizeWebUrl(model.Portfolio, out var portfolio))
+            return ShowFormAgain(model, "Website must be a web address, for example https://www.example.com");
+        model.GitHub = gitHub; model.LinkedIn = linkedIn; model.Portfolio = portfolio;
 
-        if (existing is not null && !string.IsNullOrWhiteSpace(existing.CardPin))
+        // ── Photo: an uploaded image, one of the two avatars, or none ──
+        var photo = (model.Photo ?? "").Trim();
+        bool photoOk = photo.Length == 0 || photo == "avatar:male" || photo == "avatar:female" ||
+                       System.Text.RegularExpressions.Regex.IsMatch(photo, @"^data:image/(jpeg|jpg|png|webp|gif);base64,[A-Za-z0-9+/=\s]+$");
+        if (!photoOk) photo = "";
+        if (photo.Length > 2_000_000)
+            return ShowFormAgain(model, "The photo is too large. Please choose a smaller picture.");
+        model.Photo = photo;
+
+        // ── PIN handling ─────────────────────────────────────────────────────
+        // The PIN is OPTIONAL. Employees can have none, set one, change it, or turn it off.
+        //   model.CardPin = the PIN the user typed to confirm (their CURRENT PIN)
+        //   newPin        = a new PIN to set or change to
+        //   resetPin      = true when the user turned the PIN off
+        // Turning off or changing an existing PIN requires the current PIN.
+        var existing = cards.GetBySam(sam);
+        bool hasPin  = existing is not null && !string.IsNullOrWhiteSpace(existing.CardPin);
+        var current  = (model.CardPin ?? "").Trim();
+        var newPinV  = (newPin ?? "").Trim();
+
+        IActionResult PinError(string message)
         {
-            if (!string.IsNullOrWhiteSpace(model.CardPin))
+            return ShowFormAgain(model, message);
+        }
+
+        if (hasPin)
+        {
+            bool verified = false;
+            if (current.Length > 0)
             {
-                // User entered a PIN — verify it against the stored hash
-                if (!cards.VerifyPin(sam, model.CardPin))
-                {
-                    TempData["Error"] = "Incorrect PIN. Changes were not saved.";
-                    model.CardPin = "";
-                    return View("~/Views/Home/Edit.cshtml", model);
-                }
+                // Counted on the server per employee, BEFORE checking (see AttemptLimiter)
+                verified = PinSession.TryVerify(sam, () => cards.VerifyPin(sam, current), out var wait);
+                if (!verified)
+                    return PinError(wait > TimeSpan.Zero
+                        ? PinSession.LockoutMessage(wait)
+                        : "Incorrect PIN. Changes were not saved.");
+                PinSession.Unlock(HttpContext.Session, sam);
             }
-            else if (!resetPin)
+
+            // A card with a PIN can only be saved after the PIN was entered (on the Edit gate, or here)
+            if (!PinSession.IsUnlocked(HttpContext.Session, sam))
+                return PinError("Enter your PIN to save changes.");
+
+            if (resetPin)                    // turn the PIN off
             {
-                // User left PIN field blank — keep the existing hashed PIN unchanged
-                model.CardPin     = existing.CardPin;
+                if (!verified) return PinError("Enter your current PIN to turn the PIN off.");
+                model.CardPin     = "";
+                model.PinIsHashed = false;
+            }
+            else if (newPinV.Length > 0)     // change the PIN
+            {
+                if (!verified) return PinError("Enter your current PIN to change it.");
+                model.CardPin     = newPinV;
+                model.PinIsHashed = false;
+            }
+            else                             // no PIN change — keep the stored (hashed) PIN
+            {
+                model.CardPin     = existing!.CardPin;
                 model.PinIsHashed = existing.PinIsHashed;
             }
+        }
+        else
+        {
+            // No PIN yet — optional. A new PIN arrives as NewPin (or the legacy CardPin field).
+            model.CardPin     = newPinV.Length > 0 ? newPinV : current;
+            model.PinIsHashed = false;
         }
 
         if (!string.IsNullOrWhiteSpace(model.CardPin) && !model.PinIsHashed)
         {
-            model.CardPin     = model.CardPin.Trim();
+            model.CardPin = model.CardPin.Trim();
             if (!System.Text.RegularExpressions.Regex.IsMatch(model.CardPin, @"^\d{4,6}$"))
-            {
-                TempData["Error"] = "PIN must be 4–6 digits only.";
-                return View("~/Views/Home/Edit.cshtml", model);
-            }
+                return PinError("PIN must be 4–6 digits only.");
             // DatabaseService.Save() will hash it
         }
+
+        // They know the PIN (just set, changed or confirmed it): don't ask again on the very next Edit
+        if (!string.IsNullOrWhiteSpace(model.CardPin))
+            PinSession.Unlock(HttpContext.Session, sam);
 
         // ── Persist ──────────────────────────────────────────────────────────
         var existing2 = cards.GetBySam(sam); // re-fetch after PIN check
@@ -157,6 +245,7 @@ public class MeController(
         // If any of these changed from the currently approved value, route to
         // pending approval instead of saving directly.
         bool sensitiveChanged =
+            RequireAdminApproval &&
             existing2 is not null && (
                 (model.Title      ?? "") != (existing2.Title      ?? "") ||
                 (model.Department ?? "") != (existing2.Department ?? "") ||
@@ -183,7 +272,8 @@ public class MeController(
 
             // Email admin
             var savedCard = cards.GetBySam(sam)!;
-            var reviewUrl = $"{Request.Scheme}://{Request.Host}/admin/review?key={System.Environment.GetEnvironmentVariable("ADMIN_KEY") ?? "dbpadmin2026"}";
+            // The admin signs in on /admin first; the password is never put in a link or an email
+            var reviewUrl = $"{Request.Scheme}://{Request.Host}/admin/review";
             email.SendPendingReviewNotification(
                 savedCard.Name, sam,
                 existing2!.Title,      pendTitle,
@@ -215,6 +305,38 @@ public class MeController(
         }
 
         return Redirect($"/me/qr/{saved.CardToken}");
+    }
+
+    /// <summary>
+    /// Shows the edit form again with an error message. Restores the stored card details the form
+    /// relies on (token, PIN state, created date) so an existing card still looks like itself:
+    /// Employee ID locked, PIN switch in the right position, Reset button visible.
+    /// The PIN the user typed is never echoed back.
+    /// </summary>
+    private IActionResult ShowFormAgain(CardProfile model, string message)
+    {
+        TempData["Error"] = message;
+        var stored = cards.GetBySam(model.SamAccountName);
+        model.CardToken   = stored?.CardToken ?? "";
+        model.CardPin     = stored?.CardPin ?? "";
+        model.PinIsHashed = stored?.PinIsHashed ?? false;
+        if (stored is not null)
+        {
+            model.CreatedAt   = stored.CreatedAt;
+            model.IsPublished = stored.IsPublished;
+            if (string.IsNullOrWhiteSpace(model.EmpId)) model.EmpId = stored.EmpId;
+        }
+        return View("~/Views/Home/Edit.cshtml", model);
+    }
+
+    // GET /me/qr — the signed-in employee's own QR page (used by the Welcome page "Already have a card?")
+    [HttpGet("/me/qr")]
+    public IActionResult MyQr()
+    {
+        var sam  = HttpContext.Session.GetString("SAM")!;
+        var card = cards.GetBySam(sam);
+        if (card is null || string.IsNullOrWhiteSpace(card.CardToken)) return RedirectToAction("Edit");
+        return Redirect($"/me/qr/{card.CardToken}");
     }
 
     // GET /me/qr/{token}
@@ -278,10 +400,16 @@ public class MeController(
         var card = cards.GetBySam(sam);
         if (card is null) return RedirectToAction("Edit");
 
-        if (!string.IsNullOrWhiteSpace(card.CardPin) && !cards.VerifyPin(sam, pin ?? ""))
+        if (!string.IsNullOrWhiteSpace(card.CardPin))
         {
-            TempData["Error"] = "Incorrect PIN. Reset was cancelled.";
-            return Redirect($"/me/qr/{card.CardToken}");
+            var entered = (pin ?? "").Trim();
+            if (!PinSession.TryVerify(sam, () => cards.VerifyPin(sam, entered), out var wait))
+            {
+                TempData["Error"] = wait > TimeSpan.Zero
+                    ? PinSession.LockoutMessage(wait)
+                    : "Incorrect PIN. Reset was cancelled.";
+                return Redirect($"/me/qr/{card.CardToken}");
+            }
         }
 
         var token = card.CardToken; // preserve token before reset

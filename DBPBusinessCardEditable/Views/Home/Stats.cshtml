@@ -175,7 +175,8 @@
                             : "<span style='background:#f0fdf4;color:#15803d;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;'><i class='fa-solid fa-link' style='margin-right:3px;'></i>Direct</span>";
 
                         var ipDisplay = string.IsNullOrWhiteSpace(v.IpAddress) || v.IpAddress == "Unknown"
-                                        ? "<span style='color:#cbd5e1;'>—</span>" : $"<code style='font-size:11px;'>{v.IpAddress}</code>";
+                                        ? "<span style='color:#cbd5e1;'>—</span>"
+                                        : $"<code style='font-size:11px;'>{System.Net.WebUtility.HtmlEncode(v.IpAddress)}</code>"; // visitor-supplied: always encode
 
                         <tr style="border-bottom:1px solid #f1f5f9;">
                             <td style="padding:8px 10px;color:#94a3b8;font-size:11px;">@viewNum</td>

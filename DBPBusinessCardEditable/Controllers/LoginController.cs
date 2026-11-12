@@ -44,7 +44,10 @@ public class LoginController : Controller
 
     // ── Step 3: verify username and set session ───────────────────────────────
 
+    // [Authorize] here too: with Kerberos the Windows sign-in is not kept between requests,
+    // so without it this step could see no Windows user and show "Windows authentication failed".
     [HttpGet("/login/confirm")]
+    [Authorize]
     public IActionResult Confirm([FromQuery] string username)
     {
         username = (username ?? "").Trim().ToLowerInvariant();
@@ -86,6 +89,8 @@ public class LoginController : Controller
             return View("~/Views/Login/Login.cshtml");
         }
 
+        // Start clean: nothing from a previous user of this browser (PIN unlock, admin flag) carries over
+        HttpContext.Session.Clear();
         HttpContext.Session.SetString("SAM",         windowsSam);
         HttpContext.Session.SetString("DisplayName", User.Identity?.Name ?? windowsSam);
         return RedirectToAction("Edit", "Me");

@@ -1,4 +1,4 @@
-@{
+﻿@{
     Layout = null;
 }
 <!DOCTYPE html>
@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DBP – Digital Business Card</title>
+    <title>e-Ugnay – DBP Digital Business Card</title>
     <link rel="icon" type="image/png" href="/dbp-icon.png" />
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -94,6 +94,54 @@
             color: #93c5fd; /* light blue accent */
         }
 
+        /* Montserrat Bold (SIL Open Font License), hosted in the app so no outside request is needed */
+        @@font-face {
+            font-family: "Montserrat";
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+            src: url("/fonts/montserrat-700.woff2") format("woff2");
+        }
+
+        /* e-Ugnay and the motto: same font, same weight, all white */
+        h1.brand, .motto {
+            font-family: "Montserrat", "Segoe UI", Arial, sans-serif;
+            font-weight: 700;
+            color: #ffffff;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+        }
+        h1.brand span { color: #ffffff; }
+
+        h1.brand {
+            font-size: 52px;
+            letter-spacing: 0;
+            margin-bottom: 8px;
+        }
+
+        .motto {
+            font-size: 18px;
+            letter-spacing: 0;
+            margin-bottom: 28px;
+        }
+
+        .lead-title {
+            color: #ffffff;
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .subtitle { margin-bottom: 28px; color: rgba(255,255,255,0.85); font-size: 15px; }
+
+        .steps-title {
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
         .subtitle {
             color: rgba(255,255,255,0.6);
             font-size: 14px;
@@ -123,7 +171,7 @@
             transition: max-height 0.5s ease, opacity 0.4s ease, margin-bottom 0.4s ease;
         }
         .steps.visible {
-            max-height: 400px;
+            max-height: 560px;
             opacity: 1;
             margin-bottom: 36px;
         }
@@ -263,18 +311,24 @@
         .legal-banner {
             position: relative;
             z-index: 1;
-            width: 100%;
-            max-width: 640px;
-            margin: 0 auto 32px;
-            padding: 18px 22px;
+            /* Compact + fluid: ~55% of the viewport, 300px–720px */
+            width: clamp(min(100%, 300px), 55vw, 720px);
+            max-width: 100%;
+            margin: 0 auto 24px;
+            padding: 12px 40px 12px 16px;
             text-align: left;
-            background: #b91c1c;
-            border: 1px solid #dc2626;
+            /* Fade in/out (space stays reserved so the page does not jump) */
+            opacity: 1;
+            transition: opacity 0.5s ease;
+            /* Light translucent red — same look as the Sign In page notice */
+            background: rgba(220, 38, 38, 0.18);
+            border: 1px solid rgba(248, 113, 113, 0.35);
             border-radius: 14px;
-            box-shadow: 0 8px 24px rgba(185, 28, 28, 0.45);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
         }
         .legal-banner .legal-title {
-            color: #ffffff;
+            color: #fca5a5;
             font-size: 12px;
             font-weight: 800;
             letter-spacing: 0.5px;
@@ -292,13 +346,57 @@
         }
         .legal-banner p:last-child { margin-bottom: 0; }
         .legal-banner strong { color: #fde68a; font-weight: 800; }
+
+        /* Smaller text */
+        .legal-banner .legal-title { font-size: 11px; margin-bottom: 7px; }
+        .legal-banner p            { font-size: 11px; line-height: 1.55; margin-bottom: 6px; }
+
+        /* Fade states */
+        .legal-banner.is-hidden { opacity: 0; pointer-events: none; }
+        .legal-banner.is-closed { display: none; }
+
+        /* Close (X) button */
+        .legal-close {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 26px;
+            height: 26px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        .legal-close:hover,
+        .legal-close:focus-visible { background: rgba(255, 255, 255, 0.28); outline: none; }
+
+        @@media (prefers-reduced-motion: reduce) {
+            .legal-banner { transition: none; }
+        }
+
+        /* Phones / narrow screens: full width */
+        @@media (max-width: 600px) {
+            .legal-banner {
+                width: 100%;
+                margin-bottom: 20px;
+                border-radius: 12px;
+            }
+        }
     </style>
 </head>
-<body>
+<body class="sf-top">
 
 <div class="bg"></div>
 
-<div class="legal-banner">
+<div class="legal-banner" id="legalBanner" role="region" aria-label="Restricted access notice">
+    <button type="button" class="legal-close" id="legalClose" aria-label="Close notice" title="Close">&times;</button>
     <div class="legal-title">&#9888; Restricted Access — Authorized Employees Only</div>
     <p>
         All employees must ensure that their digital business card information is accurate and
@@ -324,31 +422,34 @@
     </div>
 
     <p class="tagline">Development Bank of the Philippines</p>
-    <h1>Your <span>Digital</span><br />Business Card</h1>
-    <p class="subtitle">Create your personalized digital business card with a unique QR code — shareable, scannable, professional.</p>
+    <h1 class="brand">e-<span>Ugnay</span></h1>
+    <p class="motto">One Identity. Every Connection.</p>
+
+    <p class="subtitle">Share your professional identity with one unique QR code.</p>
 
     <div class="rule"></div>
 
     <div class="steps" id="stepsBlock">
+        <div class="steps-title">How It Works</div>
         <div class="step">
             <div class="step-num">1</div>
             <div class="step-text">
-                <strong>Enter your details</strong>
-                <span>Name, title, contact info and links</span>
+                <strong>Enter Your Details</strong>
+                <span>Provide your name, position, contact information, and professional links.</span>
             </div>
         </div>
         <div class="step">
             <div class="step-num">2</div>
             <div class="step-text">
-                <strong>Generate your QR code</strong>
-                <span>Unique to your Employee ID — permanent forever</span>
+                <strong>Generate Your QR Code</strong>
+                <span>Get a unique QR code associated with your Employee ID and digital business card.</span>
             </div>
         </div>
         <div class="step">
             <div class="step-num">3</div>
             <div class="step-text">
-                <strong>Share your card</strong>
-                <span>Anyone who scans gets your professional business card</span>
+                <strong>Share Your Digital Card</strong>
+                <span>Allow anyone who scans your QR code to view your professional business card.</span>
             </div>
         </div>
     </div>
@@ -366,7 +467,6 @@
         <p class="lookup-error" id="lookupError">⚠️ No card found for that Employee ID.</p>
     </div>
 
-    <p class="footer-note">© @DateTime.Now.Year <a href="/admin/clear" style="color:inherit;text-decoration:none;">Development Bank of the Philippines</a></p>
 
 </div>
 
@@ -419,5 +519,25 @@
     });
 </script>
 
+<script>
+// Restricted-access notice: always shown (no blinking) until the user closes it (X).
+// Closing is remembered for this browser session.
+(function () {
+    var banner = document.getElementById('legalBanner');
+    var close  = document.getElementById('legalClose');
+    if (!banner || !close) return;
+
+    var KEY = 'dbpLegalClosed';
+    try { if (sessionStorage.getItem(KEY) === '1') { banner.classList.add('is-closed'); return; } } catch (e) {}
+
+    close.addEventListener('click', function () {
+        banner.classList.add('is-closed');
+        try { sessionStorage.setItem(KEY, '1'); } catch (e) {}
+    });
+})();
+</script>
+
+@* The bank name in the copyright keeps the hidden admin entry (/admin/clear) that the old Welcome copyright line had *@
+@await Html.PartialAsync("_SiteFooter", null, new ViewDataDictionary(ViewData) { { "AdminEntry", true } })
 </body>
 </html>

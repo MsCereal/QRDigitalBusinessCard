@@ -9,14 +9,20 @@ namespace DBPBusinessCardEditable.Controllers
     public class HomeController : Controller
     {
         private readonly SqliteCardService _cards;
+        private readonly Microsoft.Extensions.Configuration.IConfiguration _config;
 
-        public HomeController(SqliteCardService cards)
+        public HomeController(SqliteCardService cards, Microsoft.Extensions.Configuration.IConfiguration config)
         {
-            _cards = cards;
+            _cards  = cards;
+            _config = config;
         }
 
         // GET / — welcome page
         public IActionResult Index() => View("Welcome");
+
+        // GET /terms — Terms of Use (public: linked from the footer of every page, including sign-in)
+        [HttpGet("/terms")]
+        public IActionResult Terms() => View("Terms");
 
         // GET /card/{token} — public card view (no auth required)
         [HttpGet("/card/{token}")]
@@ -27,7 +33,9 @@ namespace DBPBusinessCardEditable.Controllers
             if (!profile.IsEffectivelyActive)
                 return View("CardUnavailable", profile);
 
-            var ip       = Request.Headers["X-Forwarded-For"].FirstOrDefault()
+            // X-Forwarded-For is sent by the visitor's browser/proxy, so only accept a real IP address
+            var fwd      = Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',')[0].Trim();
+            var ip       = (fwd is not null && System.Net.IPAddress.TryParse(fwd, out var fwdIp) ? fwdIp.ToString() : null)
                            ?? HttpContext.Connection.RemoteIpAddress?.ToString()
                            ?? "Unknown";
             var ua       = Request.Headers["User-Agent"].ToString();
@@ -52,7 +60,7 @@ namespace DBPBusinessCardEditable.Controllers
             var p = _cards.GetByToken(token);
             if (p == null) return NotFound();
 
-            var sb = new System.Text.StringBuilder();
+            var sb = new VCardBuilder();
             sb.AppendLine("BEGIN:VCARD");
             sb.AppendLine("VERSION:3.0");
             if (p.ShowName   && !string.IsNullOrWhiteSpace(p.Name))   sb.AppendLine($"FN:{p.Name}");
@@ -107,18 +115,42 @@ namespace DBPBusinessCardEditable.Controllers
         [HttpGet("/qr/{token}")]
         public IActionResult QRScreen(string token)
         {
-            // First try by token
+            // Old links that already contain the card token
             var card = _cards.GetByToken(token);
-            // Fallback: try by Employee ID (Welcome page passes empId here)
-            if (card == null) card = _cards.Get(token);
-            if (card == null) return View("NotFound");
-            return Redirect($"/me/qr/{card.CardToken}");
+            if (card != null) return Redirect($"/me/qr/{card.CardToken}");
+
+            // Welcome page passes an Employee ID. Never reveal that card's private token here:
+            // send them to their OWN QR page (sign-in required, shows the signed-in employee's card).
+            if (_cards.Get(token) == null) return View("NotFound");
+            return Redirect("/me/qr");
         }
 
         // ── Admin (session-based — key never appears in the URL) ──────────────
+        // The password comes from the ADMIN_KEY environment variable or "Security:AdminKey"
+        // in appsettings.Local.json. There is NO built-in default: if neither is set, admin sign-in is off.
 
-        private static string AdminKey =>
-            Environment.GetEnvironmentVariable("ADMIN_KEY") ?? "dbpadmin2026";
+        private string? AdminKey
+        {
+            get
+            {
+                var k = Environment.GetEnvironmentVariable("ADMIN_KEY");
+                if (string.IsNullOrWhiteSpace(k)) k = _config["Security:AdminKey"];
+                return string.IsNullOrWhiteSpace(k) ? null : k;
+            }
+        }
+
+        private const int AdminMaxFailures = 5;
+        private string AdminLimiterKey => "admin:" + (HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+
+        private static bool SecretEquals(string a, string b) =>
+            System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                System.Text.Encoding.UTF8.GetBytes(a), System.Text.Encoding.UTF8.GetBytes(b));
+
+        // Hidden anti-forgery field for the hand-built admin pages, so another website cannot
+        // submit these admin forms (e.g. "Delete All Cards") on the admin's behalf.
+        private string AfField => "<input type='hidden' name='__RequestVerificationToken' value='" +
+            System.Net.WebUtility.HtmlEncode(((Microsoft.AspNetCore.Antiforgery.IAntiforgery)HttpContext.RequestServices
+                .GetService(typeof(Microsoft.AspNetCore.Antiforgery.IAntiforgery))!).GetAndStoreTokens(HttpContext).RequestToken) + "'/>";
 
         private bool IsAdminSession() =>
             HttpContext.Session.GetString("ADMIN") == "1";
@@ -135,20 +167,32 @@ namespace DBPBusinessCardEditable.Controllers
 
         // POST /admin/login — verify password, set session
         [HttpPost("/admin/login")]
-        [IgnoreAntiforgeryToken]
+        [ValidateAntiForgeryToken]
         public IActionResult AdminLogin(string password)
         {
-            if (password == AdminKey)
+            var key = AdminKey;
+            if (key is null)
+                return Content(AdminLoginPage("⚠️ Admin sign-in is not set up on this server. Ask IT to set the admin password (ADMIN_KEY)."), "text/html");
+
+            // Wrong passwords are limited per computer (5 tries, then a growing wait)
+            if (!Services.AttemptLimiter.TryBeginAttempt(AdminLimiterKey, AdminMaxFailures, out var wait))
+                return Content(AdminLoginPage("⚠️ " + Services.AttemptLimiter.LockoutMessage(wait)), "text/html");
+
+            if (SecretEquals(password ?? "", key))
             {
+                Services.AttemptLimiter.Succeeded(AdminLimiterKey);
                 HttpContext.Session.SetString("ADMIN", "1");
                 return Redirect("/admin");
             }
-            return Content(AdminLoginPage("⚠️ Incorrect password."), "text/html");
+            return Content(AdminLoginPage(
+                Services.AttemptLimiter.IsLockedOut(AdminLimiterKey, out wait)
+                    ? "⚠️ " + Services.AttemptLimiter.LockoutMessage(wait)
+                    : "⚠️ Incorrect password."), "text/html");
         }
 
         // POST /admin/logout
         [HttpPost("/admin/logout")]
-        [IgnoreAntiforgeryToken]
+        [ValidateAntiForgeryToken]
         public IActionResult AdminLogout()
         {
             HttpContext.Session.Remove("ADMIN");
@@ -156,7 +200,7 @@ namespace DBPBusinessCardEditable.Controllers
         }
 
         [HttpPost("/admin/logout-home")]
-        [IgnoreAntiforgeryToken]
+        [ValidateAntiForgeryToken]
         public IActionResult AdminLogoutHome()
         {
             HttpContext.Session.Remove("ADMIN");
@@ -165,7 +209,7 @@ namespace DBPBusinessCardEditable.Controllers
 
         // POST /admin/clear — delete all cards (session required)
         [HttpPost("/admin/clear")]
-        [IgnoreAntiforgeryToken]
+        [ValidateAntiForgeryToken]
         public IActionResult AdminClearPost(string action)
         {
             if (!IsAdminSession()) return Redirect("/admin");
@@ -177,13 +221,21 @@ namespace DBPBusinessCardEditable.Controllers
             return Redirect("/admin");
         }
 
-        // Legacy redirect — old bookmarks with ?key= still work but strip the key
+        // Legacy link (also the hidden link on the Welcome footer) — just opens the admin sign-in.
+        // A password in the address (?key=) is no longer accepted: it ends up in browser history and logs.
         [HttpGet("/admin/clear")]
-        public IActionResult AdminClearLegacy(string? key)
+        public IActionResult AdminClearLegacy() => Redirect("/admin");
+
+        /// <summary>
+        /// Builds a .vcf file one line at a time. Line breaks inside a value are removed, so a card field
+        /// can never add extra (fake) lines to the contact file.
+        /// </summary>
+        private sealed class VCardBuilder
         {
-            if (!string.IsNullOrWhiteSpace(key) && key == AdminKey)
-                HttpContext.Session.SetString("ADMIN", "1");
-            return Redirect("/admin");
+            private readonly System.Text.StringBuilder _sb = new();
+            public void AppendLine(string line) =>
+                _sb.Append(line.Replace("\r", " ").Replace("\n", " ")).Append("\r\n");
+            public override string ToString() => _sb.ToString();
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
@@ -258,12 +310,12 @@ input:focus{{border-color:#2563eb;background:#fff;box-shadow:0 0 0 3px rgba(37,9
     <h1><i class='fa-solid fa-shield-halved' style='margin-right:6px;color:#2563eb;'></i>Admin Console</h1>
     <p class='sub'>Enter your administrator password to continue.</p>
     {(string.IsNullOrEmpty(error) ? "" : $"<div class='error'>{error}</div>")}
-    <form method='post' action='/admin/login' autocomplete='off'>
+    <form method='post' action='/admin/login' autocomplete='off'>{AfField}
       <label>Administrator Password</label>
       <input type='password' name='password' placeholder='••••••••' autofocus autocomplete='off'/>
       <button type='submit' class='btn'>Sign In <i class='fa-solid fa-arrow-right' style='margin-left:4px;'></i></button>
     </form>
-    <form method='post' action='/admin/logout-home' style='text-align:center;margin-top:28px;'>
+    <form method='post' action='/admin/logout-home' style='text-align:center;margin-top:28px;'>{AfField}
       <button type='submit' style='background:none;border:none;padding:0;color:#64748b;font-size:12px;cursor:pointer;font-family:inherit;'>← Back to Home</button>
     </form>
     <p class='footer-note'>DBP Digital Business Card System · Administrative Console</p>
@@ -326,13 +378,13 @@ h2{{color:#0f172a;font-size:20px;font-weight:800;margin-bottom:4px;}}
 </style></head>
 <body>
 <div class='topbar'>
-<form method='post' action='/admin/logout-home' style='display:flex;align-items:center;'>
+<form method='post' action='/admin/logout-home' style='display:flex;align-items:center;'>{AfField}
   <button type='submit' style='background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center;'>
     <img src='/dbp-logo.png' alt='DBP' style='width:38px;height:38px;object-fit:contain;'/>
   </button>
 </form>
 <h1>DBP Admin Console</h1>
-<div class='badge-top'><form method='post' action='/admin/logout' style='display:inline;'><button type='submit' class='logout'><i class='fa-solid fa-right-from-bracket'></i> Sign Out</button></form></div>
+<div class='badge-top'><form method='post' action='/admin/logout' style='display:inline;'>{AfField}<button type='submit' class='logout'><i class='fa-solid fa-right-from-bracket'></i> Sign Out</button></form></div>
 </div>
 <div class='wrap'><div class='box'>
 <h2>Dashboard</h2>
@@ -341,11 +393,11 @@ h2{{color:#0f172a;font-size:20px;font-weight:800;margin-bottom:4px;}}
 {pendingAlert}
 <div class='stat'><div class='num'>{count}</div><div class='lbl'>Cards in Database</div></div>
 {reviewBtn}
-<form method='post' action='/admin/clear' style='margin-bottom:0;'>
+<form method='post' action='/admin/clear' style='margin-bottom:0;'>{AfField}
 <input type='hidden' name='action' value='clear'/>
 <button type='submit' class='btn btn-d' onclick=""return confirm('Delete all {count} cards? This cannot be undone.')""><i class='fa-solid fa-trash'></i> Delete All Cards</button>
 </form>
-<form method='post' action='/admin/logout-home' style='margin-bottom:0;'>
+<form method='post' action='/admin/logout-home' style='margin-bottom:0;'>{AfField}
 <button type='submit' class='btn btn-h'><i class='fa-solid fa-house'></i> Back to Home</button>
 </form>
 </div></div>

@@ -1,0 +1,57 @@
+@* Footer placed under a page's content, full width: a thin line, then
+   Privacy Policy (far left) | Terms of Use (center) | Help & Support (far right), then the copyright.
+   On short pages it sits at the very bottom of the screen (no empty strip under it) and never moves
+   when the content above changes size (e.g. when the Restricted Access notice is closed).
+   Pages opt in with a class on <body>:
+       sf-page = content centered in the space above the footer (Sign In, PIN, QR page)
+       sf-top  = content stays at the top, footer at the bottom (Welcome)
+   Links come from appsettings.json ("Footer" section) so they can be changed without touching code.
+   Usage:  @await Html.PartialAsync("_SiteFooter")  *@
+@inject Microsoft.Extensions.Configuration.IConfiguration Config
+@{
+    string privacyUrl = Config["Footer:PrivacyUrl"] ?? "https://www.dbp.ph/dbp-data-privacy-notice/";
+    string termsUrl   = Config["Footer:TermsUrl"]   ?? "/terms";
+    string helpUrl    = Config["Footer:HelpUrl"]    ?? "https://www.dbp.ph/contact-us/";
+    // Welcome page only: the bank name in the copyright is the hidden admin entry it always had
+    bool adminEntry   = ViewData["AdminEntry"] as bool? == true;
+}
+<style>
+    .site-footer { position: relative; z-index: 1; width: 100%; margin: 0; padding: 20px 0 12px; font-family: Arial, sans-serif; color: rgba(255,255,255,0.6); flex-shrink: 0; }
+    .site-footer .sf-links { display: flex; justify-content: space-between; gap: 8px 24px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.4); }
+    .site-footer .sf-links a { color: rgba(255,255,255,0.6); font-size: 14px; text-decoration: none; padding: 2px 0; }
+    .site-footer .sf-links a:hover, .site-footer .sf-links a:focus-visible { text-decoration: underline; color: #ffffff; outline: none; }
+    .site-footer .sf-copy { margin: 10px 0 0; text-align: center; font-size: 13px; color: rgba(255,255,255,0.6); }
+    .site-footer .sf-copy a { color: inherit; text-decoration: none; }
+
+    /* Footer pinned to the bottom of the screen; page content centered above it */
+    body > .site-footer { margin-top: auto; }
+    body.sf-page { justify-content: flex-start !important; }
+    body.sf-page::before, body.sf-page::after { content: ''; flex: 1 1 0; }
+    /* order: spacer, content, spacer, footer  (without this the lower spacer ends up BELOW the footer) */
+    body.sf-page::before { order: -1; }
+    body.sf-page::after  { order: 1; }
+    body.sf-page > .site-footer { order: 2; }
+    body.sf-page, body.sf-top { padding-bottom: 0 !important; }
+
+    /* Wide but short screens (most laptops): links and copyright share one row to save height */
+    @@media (min-width: 900px) and (max-height: 760px) {
+        .site-footer { padding: 10px 0 8px; }
+        .site-footer .sf-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.4); }
+        .site-footer .sf-links { border-top: 0; padding-top: 0; justify-content: flex-start; gap: 24px; }
+        .site-footer .sf-copy { margin: 0; text-align: right; }
+    }
+    /* Phones: links centered and wrapping */
+    @@media (max-width: 600px) {
+        .site-footer .sf-links { justify-content: center; }
+    }
+</style>
+<footer class="site-footer">
+    <div class="sf-inner">
+        <nav class="sf-links" aria-label="Footer">
+            <a href="@privacyUrl" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+            <a href="@termsUrl" target="_blank" rel="noopener noreferrer">Terms of Use</a>
+            <a href="@helpUrl" target="_blank" rel="noopener noreferrer">Help &amp; Support</a>
+        </nav>
+        <p class="sf-copy">&copy; @DateTime.Now.Year @(adminEntry ? Html.Raw("<a href=\"/admin/clear\">Development Bank of the Philippines</a>") : Html.Raw("Development Bank of the Philippines")). All rights reserved.</p>
+    </div>
+</footer>

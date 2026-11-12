@@ -1,5 +1,4 @@
 using DBPBusinessCardEditable.Models;
-using DBPBusinessCardEditable.Models;
 using DBPBusinessCardEditable.Services;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -16,19 +15,29 @@ namespace DBPBusinessCardEditable.Controllers
         private readonly SqliteCardService _service;
         public CardsApiController(SqliteCardService service) => _service = service;
 
+        // API key comes from the API_KEY environment variable or "Security:ApiKey" in appsettings.Local.json.
+        // There is NO built-in default: if neither is set, the key-protected endpoints are switched off.
+        // The key is accepted only in the X-Api-Key header (never in the address, where it would be logged).
         private bool IsAuthorized()
         {
-            string expected = Environment.GetEnvironmentVariable("API_KEY") ?? "dbp-api-2026";
-            Request.Headers.TryGetValue("X-Api-Key", out var headerKey);
-            Request.Query.TryGetValue("apiKey", out var queryKey);
-            return headerKey == expected || queryKey == expected;
+            var cfg = HttpContext.RequestServices.GetService(typeof(Microsoft.Extensions.Configuration.IConfiguration))
+                      as Microsoft.Extensions.Configuration.IConfiguration;
+            string? expected = Environment.GetEnvironmentVariable("API_KEY");
+            if (string.IsNullOrWhiteSpace(expected)) expected = cfg?["Security:ApiKey"];
+            if (string.IsNullOrWhiteSpace(expected)) return false;
+
+            if (!Request.Headers.TryGetValue("X-Api-Key", out var headerKey)) return false;
+            return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                System.Text.Encoding.UTF8.GetBytes(headerKey.ToString()),
+                System.Text.Encoding.UTF8.GetBytes(expected));
         }
         private IActionResult Unauthorized401() =>
-            StatusCode(401, new { error = "Unauthorized. Provide API key via X-Api-Key header or ?apiKey= query." });
+            StatusCode(401, new { error = "Unauthorized. Provide the API key in the X-Api-Key header." });
 
         private object CardSummary(CardProfile card, bool includeCardUrl = true)
         {
-            var url = $"{Request.Scheme}://{Request.Host}/card/{card.CardToken}";
+            // The card link holds the card's private token: only share it with key holders
+            string? url = includeCardUrl ? $"{Request.Scheme}://{Request.Host}/card/{card.CardToken}" : null;
             return new
             {
                 empId       = card.EmpId,
@@ -43,7 +52,7 @@ namespace DBPBusinessCardEditable.Controllers
                 portfolio   = card.ShowPortfolio ? card.Portfolio : null,
                 hasPhoto    = !string.IsNullOrEmpty(card.Photo),
                 cardUrl     = url,
-                qrUrl       = $"{Request.Scheme}://{Request.Host}/QR/Generate/{card.EmpId}",
+                qrUrl       = includeCardUrl ? $"{Request.Scheme}://{Request.Host}/QR/Generate/{card.CardToken}" : null,
                 lastUpdated = card.LastUpdated
             };
         }
@@ -58,7 +67,8 @@ namespace DBPBusinessCardEditable.Controllers
             var card = _service.Get(empId);
             if (card == null)
                 return NotFound(new { error = $"No card found for Employee ID: {empId}" });
-            return Ok(CardSummary(card));
+            // Public callers get the card details but not the private card link / QR link
+            return Ok(CardSummary(card, includeCardUrl: IsAuthorized()));
         }
 
         /// <summary>Get all employee cards. Requires API key.</summary>

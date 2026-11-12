@@ -103,6 +103,8 @@
         .sheet-option-icon i { font-size: 17px; color: #2563eb; }
         .sheet-option-icon.male-icon { background: #dbeafe; }
         .sheet-option-icon.female-icon { background: #fce7f3; }
+        .sheet-option-icon.none-icon { background: #f3f4f6; }
+        .sheet-option-icon.none-icon i { color: #4b5563; }
         .sheet-option-text { display: flex; flex-direction: column; gap: 1px; }
         .sheet-option-text strong { font-size: 14px; color: #111827; font-weight: 700; }
         .sheet-option-text span { font-size: 12px; color: #9ca3af; }
@@ -173,20 +175,64 @@
         .page-layout {
             display: flex;
             align-items: flex-start;
-            gap: 40px;
+            justify-content: center;
+            gap: 36px;
             width: 100%;
-            max-width: 1100px;
+            max-width: 1360px;
             margin: 0 auto;
             padding: 30px 24px 60px;
         }
         .page-layout .wrap {
             flex: 1;
             min-width: 0;
+            max-width: 880px;
             padding: 0;
         }
+
+        /* ── Wider form card: fields sit two per row when the card is wide enough ── */
+        .card { container-type: inline-size; padding: 28px clamp(20px, 3vw, 40px); }
+        .fields-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
+        @@container (min-width: 560px) {
+            .fields-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+            .fields-grid .span-2,
+            .fields-grid .pin-error-msg { grid-column: 1 / -1; }
+        }
+
+        /* Card PIN section + popup */
+        /* PIN choice: a clear OFF / ON switch row */
+        .pin-choice { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; background: #f8fafc; border: 1.5px solid #e5e7eb; border-radius: 14px; padding: 14px 18px; margin-bottom: 14px; }
+        .pin-text { flex: 1 1 260px; min-width: 0; }
+        .pin-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 800; color: #111827; margin: 0; }
+        .pin-title i { color: #2563eb; font-size: 16px; }
+        .pin-title em { font-style: normal; font-weight: 500; font-size: 13px; color: #6b7280; }
+        .pin-text .hint { margin-top: 4px; padding-left: 26px; }
+        .pin-text .pin-btn { margin: 8px 0 0 26px; }
+        .pin-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; flex-shrink: 0; user-select: none; }
+        .pin-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+        .pin-slider { position: relative; width: 54px; height: 30px; border-radius: 30px; background: #9ca3af; transition: background 0.2s; flex-shrink: 0; }
+        .pin-slider::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.3); transition: transform 0.2s; }
+        .pin-switch input:checked + .pin-slider { background: #2563eb; }
+        .pin-switch input:checked + .pin-slider::after { transform: translateX(24px); }
+        .pin-switch input:focus-visible + .pin-slider { outline: 3px solid #93c5fd; outline-offset: 2px; }
+        .pin-switch:hover .pin-slider { filter: brightness(0.92); }
+        .pin-state { min-width: 30px; font-size: 14px; font-weight: 800; letter-spacing: 0.5px; color: #4b5563; }
+        .pin-switch input:checked ~ .pin-state { color: #1d4ed8; }
+        @@media (prefers-reduced-motion: reduce) { .pin-slider, .pin-slider::after { transition: none; } }
+        .pin-btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border: 1.5px solid #2563eb; border-radius: 10px; background: #eff6ff; color: #1d4ed8; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s, color 0.15s; }
+        .pin-btn:hover, .pin-btn:focus-visible { background: #2563eb; color: #fff; outline: none; }
+        .pin-row { margin-bottom: 10px; }
+        .pin-row label { display: block; font-size: 12px; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
+        .pin-input { text-align: center; letter-spacing: 3px; font-size: 16px; }
+
+        /* Easier to read: larger labels/hints, darker hint grey on white */
+        .field-header label { font-size: 12px; }
+        .hint, .hide-hint { font-size: 12px; }
+        .hint { color: #6b7280; }
+        .back { color: #ffffff; font-size: 14px; font-weight: 600; }
+        .preview-panel-label { color: #ffffff; font-size: 12px; }
         /* Right sticky preview panel */
         .preview-panel {
-            width: 380px;
+            width: 400px;
             flex-shrink: 0;
             position: sticky;
             top: 24px;
@@ -245,12 +291,15 @@
             <p class="photo-section-label">Profile Photo</p>
             <div class="photo-top-wrap">
                 <div class="photo-top-circle" id="photoTopCircle">
-                    @if (!string.IsNullOrWhiteSpace(Model.Photo) && Model.Photo.StartsWith("data:"))
+                    @* The controller always passes a card (new or existing), so Model is never null here *@
+                    @if (!string.IsNullOrWhiteSpace(Model!.Photo) && Model.Photo.StartsWith("data:"))
                     { <img src="@Model.Photo" alt="Photo" /> }
                     else if (Model.Photo == "avatar:male")
                     { <img src="/dbp-boy.png" alt="Male" style="width:100%;height:100%;object-fit:cover;display:block;" /> }
                     else if (Model.Photo == "avatar:female")
                     { <img src="/dbp-girl.png" alt="Female" style="width:100%;height:100%;object-fit:cover;display:block;" /> }
+                    else if (string.IsNullOrWhiteSpace(Model.Photo))
+                    { <i class="fa-solid fa-user-slash"></i> }
                     else
                     { <img src="/dbp-logo.png" alt="DBP" style="width:58px;height:58px;object-fit:contain;" /> }
                 </div>
@@ -285,6 +334,10 @@
                         <div class="sheet-option-icon female-icon"><img src="/dbp-girl.png" alt="Female" style="width:28px;height:28px;object-fit:contain;" /></div>
                         <div class="sheet-option-text"><strong>Female Avatar</strong><span>Use default female icon</span></div>
                     </button>
+                    <button type="button" class="sheet-option" onclick="clearPhoto(); closePhotoSheet()">
+                        <div class="sheet-option-icon none-icon"><i class="fa-solid fa-user-slash"></i></div>
+                        <div class="sheet-option-text"><strong>No Image</strong><span>Don't show any picture on my card</span></div>
+                    </button>
                 </div>
                 <button type="button" class="sheet-cancel" onclick="closePhotoSheet()">Cancel</button>
             </div>
@@ -316,6 +369,7 @@
             <input type="hidden" name="Photo" id="photoData" value="@Model.Photo" />
 
             <p class="section-title">Employee Identity</p>
+            <div class="fields-grid">
             <div class="form-group">
                 <div class="field-header"><label>Employee ID *</label></div>
                 @if (isExisting)
@@ -339,6 +393,8 @@
                    oninput="this.value=this.value.replace(/[^0-9]/g,''); this.classList.remove('pin-error'); document.getElementById('pinErrMsg').classList.remove('show');"
                    onkeypress="return /[0-9]/.test(event.key);"
                    onpaste="var e=event; setTimeout(function(){ e.target.value=e.target.value.replace(/[^0-9]/g,''); },0);" />
+            <input type="hidden" name="NewPin" id="newPinInput" value="" />
+            <input type="hidden" name="resetPin" id="resetPinFlag" value="false" />
             <p class="pin-error-msg" id="pinErrMsg">⚠️ This card has a PIN — enter it to save changes.</p>
 
             <!-- Card Active Toggle -->
@@ -357,7 +413,7 @@
             </div>
 
             <!-- ATM Card Expiry -->
-            <div class="form-group">
+            <div class="form-group span-2">
                 <div class="field-header">
                     <label><i class="fa-solid fa-credit-card" style="margin-right:5px;color:#2563eb;font-size:10px;"></i>ATM Card Expiry <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">(MM/YY)</span><span id="expiryBadge" style="display:none;"></span></label>
                     @if (Model.IsExpired)
@@ -385,8 +441,11 @@
                 </p>
             </div>
 
+            </div><!-- /.fields-grid -->
+
             <div class="divider"></div>
             <p class="section-title">Personal Information</p>
+            <div class="fields-grid">
 
             <div class="form-group">
                 <div class="field-header">
@@ -415,8 +474,11 @@
                 @if (!Model.ShowPreferredName) { <p class="hint">Toggle on to add a nickname shown on your card.</p> }
             </div>
 
+            </div><!-- /.fields-grid -->
+
             <div class="divider"></div>
             <p class="section-title">Professional</p>
+            <div class="fields-grid">
 
             <div class="form-group">
                 <div class="field-header">
@@ -467,8 +529,11 @@
                 else { <p class="hide-hint">Hidden from your card.</p> }
             </div>
 
+            </div><!-- /.fields-grid -->
+
             <div class="divider"></div>
             <p class="section-title">Contact Details</p>
+            <div class="fields-grid">
 
             <div class="form-group">
                 <div class="field-header">
@@ -494,8 +559,11 @@
                 @if (!Model.ShowEmail) { <p class="hide-hint">Hidden from your card.</p> }
             </div>
 
+            </div><!-- /.fields-grid -->
+
             <div class="divider"></div>
-            <p class="section-title">Links <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">(optional)</span></p>
+            <p class="section-title">Links <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#6b7280;">(optional)</span></p>
+            <div class="fields-grid">
 
             <div class="form-group">
                 <div class="field-header">
@@ -521,7 +589,7 @@
                 @if (!Model.ShowLinkedIn) { <p class="hide-hint">Hidden from your card.</p> }
             </div>
 
-            <div class="form-group">
+            <div class="form-group span-2">
                 <div class="field-header">
                     <label>Portfolio / Website</label>
                     <div class="toggle-wrap">
@@ -532,6 +600,8 @@
                 <input type="url" id="fieldPortfolio" name="Portfolio" value="@Model.Portfolio" placeholder="https://yoursite.com" maxlength="200" class="@(!Model.ShowPortfolio ? "field-hidden" : "")" />
                 @if (!Model.ShowPortfolio) { <p class="hide-hint">Hidden from your card.</p> }
             </div>
+
+            </div><!-- /.fields-grid -->
 
             <div class="divider"></div>
             <p class="section-title">Additional Info <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">(your own fields)</span></p>
@@ -567,14 +637,24 @@
             </button>
 
             <div class="divider"></div>
+
+            <!-- Card PIN — OPTIONAL choice, off unless the employee turns it on -->
+            <div class="pin-choice" id="pinSection">
+                <div class="pin-text">
+                    <p class="pin-title"><i class="fa-solid fa-lock"></i><span>Protect my card with a PIN <em>(optional)</em></span></p>
+                    <p class="hint" id="pinStatusHint"></p>
+                    <button type="button" class="pin-btn" id="pinChangeBtn" onclick="openPinModal('change')" style="@(string.IsNullOrWhiteSpace(Model.CardPin) ? "display:none;" : "")"><i class="fa-solid fa-key"></i> Change PIN</button>
+                </div>
+                <label class="pin-switch" for="pinToggle">
+                    <input type="checkbox" role="switch" id="pinToggle" onchange="onPinToggle(this)" @(string.IsNullOrWhiteSpace(Model.CardPin) ? "" : "checked") />
+                    <span class="pin-slider"></span>
+                    <span class="pin-state" id="pinState">@(string.IsNullOrWhiteSpace(Model.CardPin) ? "OFF" : "ON")</span>
+                </label>
+            </div>
+
             <div style="display:flex;gap:8px;align-items:center;">
                 <button type="button" class="btn btn-save" style="flex:1;" onclick="handleSave()">
                     <i class="fa-solid fa-floppy-disk"></i> Save &amp; View My QR
-                </button>
-                <button type="button" id="pinLockBtn" onclick="openPinModal()"
-                        title="@(string.IsNullOrWhiteSpace(Model.CardPin) ? "Set a PIN to protect your card" : "Card is PIN protected")"
-                        style="width:44px;height:44px;border-radius:11px;border:1.5px solid @(string.IsNullOrWhiteSpace(Model.CardPin) ? "#e5e7eb" : "#2563eb");background:@(string.IsNullOrWhiteSpace(Model.CardPin) ? "#f9fafb" : "#eff6ff");color:@(string.IsNullOrWhiteSpace(Model.CardPin) ? "#9ca3af" : "#2563eb");font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;">
-                    <i class="fa-solid @(string.IsNullOrWhiteSpace(Model.CardPin) ? "fa-lock-open" : "fa-lock")"></i>
                 </button>
             </div>
         </form>
@@ -623,7 +703,7 @@
         <div id="prevBtnsD" style="display:none;"></div>
         <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:6px;" id="prevHintD">Fill in the form to preview your card</p>
     </div>
-    <p style="color:rgba(255,255,255,0.25);font-size:11px;text-align:center;line-height:1.6;">
+    <p style="color:#ffffff;font-size:13px;font-weight:600;text-align:center;line-height:1.6;margin-top:14px;">
         Updates as you type.<br/>This is how your card will look.
     </p>
   </div>
@@ -657,40 +737,39 @@
     </div>
 </div>
 
-<!-- PIN modal — shown when lock button clicked or when saving a PIN-protected card -->
+<!-- PIN popup — one popup for: set a PIN, change it, turn it off, or confirm a save -->
 <div id="pinModalOverlay" onclick="closePinModal()" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
-    <div onclick="event.stopPropagation()" style="background:#fff;border-radius:20px;padding:28px 24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+    <div onclick="event.stopPropagation()" style="background:#fff;border-radius:20px;padding:28px 24px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.25);" role="dialog" aria-modal="true" aria-labelledby="pinModalTitle">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
             <div style="width:38px;height:38px;border-radius:10px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <i class="fa-solid fa-lock" style="color:#2563eb;font-size:16px;"></i>
             </div>
             <div>
-                <p style="font-size:14px;font-weight:800;color:#0f172a;" id="pinModalTitle">Card PIN</p>
-                <p style="font-size:11px;color:#94a3b8;" id="pinModalSub">Protects your card from unauthorized edits</p>
+                <p style="font-size:15px;font-weight:800;color:#0f172a;" id="pinModalTitle">Card PIN</p>
+                <p style="font-size:12px;color:#4b5563;" id="pinModalSub"></p>
             </div>
         </div>
-        <input type="password" id="pinModalInput" placeholder="Enter PIN (4–6 digits)"
-               maxlength="6" inputmode="numeric" autocomplete="off"
-               style="width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:16px;color:#0f172a;background:#f9fafb;outline:none;text-align:center;letter-spacing:3px;margin-bottom:6px;"
-               oninput="this.value=this.value.replace(/[^0-9]/g,'')"
-               onfocus="this.style.borderColor='#2563eb';this.style.background='#fff'"
-               onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'"
-               onkeypress="return /[0-9]/.test(event.key);" />
-        <p id="pinModalHint" style="font-size:11px;color:#94a3b8;margin-bottom:16px;text-align:center;"></p>
+        <div class="pin-row" id="pinRowCur">
+            <label for="pinModalCur" id="pinCurLabel">Current PIN</label>
+            <input type="password" id="pinModalCur" class="pin-input" maxlength="6" inputmode="numeric" autocomplete="off" placeholder="4–6 digits" />
+        </div>
+        <div class="pin-row" id="pinRowNew">
+            <label for="pinModalNew">New PIN</label>
+            <input type="password" id="pinModalNew" class="pin-input" maxlength="6" inputmode="numeric" autocomplete="off" placeholder="4–6 digits" />
+        </div>
+        <div class="pin-row" id="pinRowNew2">
+            <label for="pinModalNew2">Type the new PIN again</label>
+            <input type="password" id="pinModalNew2" class="pin-input" maxlength="6" inputmode="numeric" autocomplete="off" placeholder="Repeat new PIN" />
+        </div>
+        <p id="pinModalHint" style="font-size:12px;color:#6b7280;margin:4px 0 14px;text-align:center;min-height:16px;"></p>
         <div style="display:flex;gap:8px;">
-            <button onclick="closePinModal()" style="flex:1;padding:11px;border:1.5px solid #e5e7eb;border-radius:10px;background:#fff;color:#374151;font-size:13px;font-weight:700;cursor:pointer;">
+            <button type="button" onclick="closePinModal()" style="flex:1;padding:11px;border:1.5px solid #e5e7eb;border-radius:10px;background:#fff;color:#374151;font-size:14px;font-weight:700;cursor:pointer;">
                 Cancel
             </button>
-            <button onclick="confirmPin()" style="flex:1;padding:11px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">
+            <button type="button" onclick="confirmPin()" style="flex:1;padding:11px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
                 Confirm
             </button>
         </div>
-        @if (!string.IsNullOrWhiteSpace(Model.CardPin))
-        {
-            <button onclick="removePinFromModal()" style="width:100%;margin-top:8px;padding:9px;border:none;border-radius:10px;background:transparent;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline;">
-                Remove PIN
-            </button>
-        }
     </div>
 </div>
 
@@ -755,6 +834,7 @@
                 canvas.width = w; canvas.height = h;
                 canvas.getContext('2d').drawImage(img, 0, 0, w, h);
                 var dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+                restoreShowPhotoIfCleared();
                 document.getElementById('photoData').value = dataUrl;
                 document.getElementById('photoTopCircle').innerHTML = '<img src="' + dataUrl + '" alt="Photo" style="width:100%;height:100%;object-fit:cover;display:block;" />';
                 updatePreview();
@@ -764,7 +844,30 @@
         reader.readAsDataURL(input.files[0]);
     }
 
+    // Turn the photo's "Show on card" switch on/off and keep its eye icon in sync
+    function setShowPhoto(show) {
+        document.getElementById('hShowPhoto').value = show ? 'true' : 'false';
+        var btn = document.getElementById('eyePhoto');
+        btn.querySelector('i').className = 'fa-regular ' + (show ? 'fa-eye' : 'fa-eye-slash');
+        btn.classList.toggle('hidden', !show);
+    }
+
+    // "No Image": remove the picture and hide it from the card
+    function clearPhoto() {
+        document.getElementById('photoData').value = '';
+        // Editor circle shows a neutral "no picture" icon (this is only the picker, not the card)
+        document.getElementById('photoTopCircle').innerHTML = '<i class="fa-solid fa-user-slash"></i>';
+        setShowPhoto(false);
+        updatePreview();
+    }
+
+    // If the user chose "No Image" earlier and now picks a photo/avatar, show it again
+    function restoreShowPhotoIfCleared() {
+        if (!document.getElementById('photoData').value) setShowPhoto(true);
+    }
+
     function setAvatar(key) {
+        restoreShowPhotoIfCleared();
         document.getElementById('photoData').value = key;
         document.getElementById('photoTopCircle').innerHTML = key === 'avatar:female'
             ? '<img src="/dbp-girl.png" alt="Female" style="width:100%;height:100%;object-fit:cover;display:block;" />'
@@ -873,12 +976,14 @@
             var wrap = document.getElementById('prevPhotoWrap' + s);
             if (wrap) {
                 var ph = '';
-                if (!sPhoto || !photoData)          ph = '<img src="/dbp-logo.png" style="width:42px;height:42px;object-fit:contain;" />';
+                var noPhoto = (!sPhoto || !photoData);   // "No Image" / hidden: no picture area at all
+                if (noPhoto)                        ph = '';
                 else if (photoData.startsWith('data:')) ph = '<img src="' + photoData + '" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;margin:0 auto;" />';
                 else if (photoData === 'avatar:male')   ph = '<img src="/dbp-boy.png"  style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;margin:0 auto;" />';
                 else if (photoData === 'avatar:female') ph = '<img src="/dbp-girl.png" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;margin:0 auto;" />';
                 else ph = '<img src="/dbp-logo.png" style="width:42px;height:42px;object-fit:contain;" />';
                 wrap.innerHTML = ph;
+                if (wrap.parentElement) wrap.parentElement.style.display = noPhoto ? 'none' : '';
             }
         // Name — show preferred name as main, full name as subtitle (same as real card)
         var nEl = document.getElementById('prevName' + s);
@@ -1028,112 +1133,147 @@
     }
 
     // ── PIN Modal ──────────────────────────────────────────────────────────────
-    var cardHasPin = @(string.IsNullOrWhiteSpace(Model.CardPin) ? "false" : "true");
-    var _pendingSave = false;
+    var cardHasPin = @(string.IsNullOrWhiteSpace(Model.CardPin) ? "false" : "true");   // is a PIN stored right now?
+    var pinPlan = 'none';    // change chosen on this page, applied when Save is pressed: none | set | change | remove
+    var pinMode = 'save';    // what the PIN popup is doing: save | set | change | remove
+
+    function pinEl(id) { return document.getElementById(id); }
+    function validPin(v) { return /^\d{4,6}$/.test(v); }
+    function submitCardForm() { document.querySelector('form[action="/me/save"]').submit(); }
+
+    // Is this edit session unlocked? (A card with a PIN asks for it BEFORE this page opens.)
+    var pinUnlocked = @(DBPBusinessCardEditable.Services.PinSession.IsUnlocked(Context.Session, Context.Session.GetString("SAM") ?? "") ? "true" : "false");
 
     function handleSave() {
-        // If card has existing PIN, show modal to confirm before saving
-        if (cardHasPin) {
-            _pendingSave = true;
-            openPinModal();
-        } else {
-            // No existing PIN — submit directly (user can set one via lock button separately)
-            document.querySelector('form[action="/me/save"]').submit();
-        }
+        // Just turned the PIN on: type the new PIN once to confirm it before saving
+        if (!cardHasPin && pinPlan === 'set') { openPinModal('confirmNew'); return; }
+        // Has a PIN but the unlock ran out (idle too long): ask again, your typed changes are kept
+        if (cardHasPin && !pinUnlocked && !pinEl('cardPinInput').value) { openPinModal('save'); return; }
+        submitCardForm();
     }
 
-    function openPinModal() {
-        var modal  = document.getElementById('pinModalOverlay');
-        var input  = document.getElementById('pinModalInput');
-        var title  = document.getElementById('pinModalTitle');
-        var sub    = document.getElementById('pinModalSub');
-        var hint   = document.getElementById('pinModalHint');
-
-        if (cardHasPin && _pendingSave) {
-            title.textContent = 'Enter Your PIN';
-            sub.textContent   = 'Enter your PIN to confirm and save changes.';
-            hint.textContent  = 'Leave blank to keep your current PIN unchanged.';
-        } else if (cardHasPin) {
-            title.textContent = 'Change PIN';
-            sub.textContent   = 'Enter a new PIN to replace your current one.';
-            hint.textContent  = 'Leave blank to keep your current PIN unchanged.';
-        } else {
-            title.textContent = 'Set a PIN';
-            sub.textContent   = 'Optional — protects your card from unauthorized edits.';
-            hint.textContent  = 'Leave blank to save without a PIN.';
-        }
-
-        input.value = '';
-        modal.style.display = 'flex';
-        setTimeout(function() { input.focus(); }, 100);
+    function clearPinPlan() {
+        pinEl('cardPinInput').value = '';
+        pinEl('newPinInput').value  = '';
+        pinEl('resetPinFlag').value = 'false';
+        pinPlan = 'none';
     }
 
+    function openPinModal(mode) {
+        // Edge cases while a change is waiting for Save
+        if (!cardHasPin && pinPlan === 'set') {          // PIN not saved yet: "turn off" just cancels it
+            if (mode === 'remove') { clearPinPlan(); updatePinUi(); return; }
+            mode = 'set';
+        }
+        if (cardHasPin && mode === 'set') mode = 'change'; // PIN exists (was queued to turn off): needs the current PIN
+        pinMode = mode;
+
+        var text = {
+            save:   ['Enter Your PIN',  'Enter your PIN to confirm and save your changes.'],
+            confirmNew: ['Confirm Your New PIN', 'Type the PIN you just chose, to make sure you remember it.'],
+            set:    ['Set a PIN',       'Optional. Stops other people from editing your card.'],
+            change: ['Change PIN',      'Enter your current PIN, then choose a new one.'],
+            remove: ['Turn Off PIN',    'Enter your current PIN to turn it off.']
+        }[mode];
+        pinEl('pinModalTitle').textContent = text[0];
+        pinEl('pinModalSub').textContent   = text[1];
+        pinEl('pinCurLabel').textContent   = (mode === 'confirmNew') ? 'Your new PIN' : 'Current PIN';
+
+        var needCur = mode !== 'set', needNew = (mode === 'set' || mode === 'change');
+        pinEl('pinRowCur').style.display  = needCur ? '' : 'none';
+        pinEl('pinRowNew').style.display  = needNew ? '' : 'none';
+        pinEl('pinRowNew2').style.display = needNew ? '' : 'none';
+        ['pinModalCur', 'pinModalNew', 'pinModalNew2'].forEach(function (id) {
+            var e = pinEl(id); e.value = ''; e.style.borderColor = '';
+        });
+        var hint = pinEl('pinModalHint'); hint.textContent = ''; hint.style.color = '#6b7280';
+
+        pinEl('pinModalOverlay').style.display = 'flex';
+        setTimeout(function () { pinEl(needCur ? 'pinModalCur' : 'pinModalNew').focus(); }, 100);
+    }
     function closePinModal() {
-        document.getElementById('pinModalOverlay').style.display = 'none';
-        _pendingSave = false;
+        pinEl('pinModalOverlay').style.display = 'none';
+        updatePinUi();   // cancelled? put the checkbox back to its real state
+    }
+
+    // The "Protect my card with a PIN" checkbox. Nothing happens unless the employee clicks it.
+    function onPinToggle(cb) {
+        if (cb.checked) {
+            if (cardHasPin && pinPlan === 'remove') { clearPinPlan(); updatePinUi(); return; }  // changed their mind: keep the PIN
+            openPinModal('set');        // choose a PIN
+        } else {
+            openPinModal('remove');     // needs the current PIN to turn it off
+        }
+    }
+
+    function pinFail(message, fieldId) {
+        var hint = pinEl('pinModalHint');
+        hint.textContent = '\u26A0 ' + message; hint.style.color = '#dc2626';
+        if (fieldId) { pinEl(fieldId).style.borderColor = '#dc2626'; pinEl(fieldId).focus(); }
     }
 
     function confirmPin() {
-        var pin = document.getElementById('pinModalInput').value.trim();
+        var cur = pinEl('pinModalCur').value.trim();
+        var nw  = pinEl('pinModalNew').value.trim();
+        var nw2 = pinEl('pinModalNew2').value.trim();
+        var needCur = pinMode !== 'set', needNew = (pinMode === 'set' || pinMode === 'change');
 
-        // Validate format if a PIN was entered
-        if (pin.length > 0 && (pin.length < 4 || pin.length > 6)) {
-            var input = document.getElementById('pinModalInput');
-            input.style.borderColor = '#dc2626';
-            input.style.background  = '#fef2f2';
-            document.getElementById('pinModalHint').textContent = '⚠️ PIN must be 4–6 digits.';
-            document.getElementById('pinModalHint').style.color = '#dc2626';
+        if (needCur && !validPin(cur)) { pinFail('Enter your current PIN (4\u20136 digits).', 'pinModalCur'); return; }
+        if (needNew) {
+            if (!validPin(nw)) { pinFail('The new PIN must be 4\u20136 digits.', 'pinModalNew'); return; }
+            if (nw !== nw2)    { pinFail('The two new PINs do not match.', 'pinModalNew2'); return; }
+        }
+
+        if (pinMode === 'confirmNew') {                // must match the PIN they just chose
+            if (cur !== pinEl('newPinInput').value) {
+                pinFail('That is not the PIN you chose. Try again, or press Cancel and choose a new one.', 'pinModalCur');
+                return;
+            }
+            closePinModal();
+            submitCardForm();
             return;
         }
-
-        // Copy PIN value to the hidden input in the form
-        document.getElementById('cardPinInput').value = pin;
-        document.getElementById('pinModalOverlay').style.display = 'none';
-
-        // Update lock button appearance
-        var lockBtn = document.getElementById('pinLockBtn');
-        var icon    = lockBtn ? lockBtn.querySelector('i') : null;
-        if (pin.length > 0) {
-            // PIN was set or changed — show locked blue
-            if (lockBtn) { lockBtn.style.borderColor='#2563eb'; lockBtn.style.background='#eff6ff'; lockBtn.style.color='#2563eb'; }
-            if (icon)    icon.className = 'fa-solid fa-lock';
-            cardHasPin = true;
-        } else if (!cardHasPin) {
-            // No PIN entered and no existing PIN — stay grey unlocked
-            if (lockBtn) { lockBtn.style.borderColor='#e5e7eb'; lockBtn.style.background='#f9fafb'; lockBtn.style.color='#9ca3af'; }
-            if (icon)    icon.className = 'fa-solid fa-lock-open';
+        if (pinMode === 'save') {
+            pinEl('cardPinInput').value = cur;         // just confirming a normal save
+            closePinModal();
+            submitCardForm();
+            return;
         }
-        // If pin is blank but cardHasPin=true, PIN is unchanged — keep locked appearance
-
-        if (_pendingSave) {
-            _pendingSave = false;
-            document.querySelector('form[action="/me/save"]').submit();
-        }
+        // set / change / remove: remember it, it takes effect when Save is pressed
+        pinEl('cardPinInput').value = needCur ? cur : '';
+        pinEl('newPinInput').value  = needNew ? nw : '';
+        pinEl('resetPinFlag').value = (pinMode === 'remove') ? 'true' : 'false';
+        pinPlan = pinMode;
+        closePinModal();
+        updatePinUi();
     }
 
-    function removePinFromModal() {
-        if (!confirm('Remove your PIN? Anyone will be able to edit your card without a PIN.')) return;
-        var form     = document.querySelector('form[action="/me/save"]');
-        var pinInput = document.getElementById('cardPinInput');
-        pinInput.value = '';
+    // Refresh the Card PIN section (badge, buttons, message)
+    function updatePinUi() {
+        var on = pinPlan === 'remove' ? false
+               : (pinPlan === 'set' || pinPlan === 'change') ? true
+               : cardHasPin;
+        pinEl('pinToggle').checked          = on;
+        pinEl('pinState').textContent       = on ? 'ON' : 'OFF';
+        pinEl('pinChangeBtn').style.display = on ? '' : 'none';
 
-        // Add resetPin flag
-        var existing = document.getElementById('pinResetFlag');
-        if (!existing) {
-            var flag = document.createElement('input');
-            flag.type = 'hidden'; flag.name = 'resetPin'; flag.value = 'true'; flag.id = 'pinResetFlag';
-            form.appendChild(flag);
-        }
-
-        // Update lock button
-        var lockBtn = document.getElementById('pinLockBtn');
-        if (lockBtn) { lockBtn.style.borderColor='#e5e7eb'; lockBtn.style.background='#f9fafb'; lockBtn.style.color='#9ca3af'; }
-        var icon = lockBtn ? lockBtn.querySelector('i') : null;
-        if (icon) icon.className = 'fa-solid fa-lock-open';
-
-        cardHasPin = false;
-        document.getElementById('pinModalOverlay').style.display = 'none';
+        var msg = {
+            none:   cardHasPin ? 'Your card has a PIN. Switch it OFF to remove it, or change it.'
+                               : 'Not using a PIN. Switch it ON only if you want one.',
+            set:    'New PIN ready. It starts when you press Save.',
+            change: 'New PIN ready. It changes when you press Save.',
+            remove: 'The PIN will be turned off when you press Save.'
+        }[pinPlan];
+        pinEl('pinStatusHint').textContent = msg;
     }
+    updatePinUi();
+
+    // Enter key confirms the PIN popup; digits only in the PIN boxes
+    ['pinModalCur', 'pinModalNew', 'pinModalNew2'].forEach(function (id) {
+        var e = pinEl(id);
+        e.addEventListener('input', function () { e.value = e.value.replace(/[^0-9]/g, ''); e.style.borderColor = ''; });
+        e.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); confirmPin(); } });
+    });
 
     // -------------------------------------------------------------------
     // AD pre-fill — fires when the user finishes typing their Employee ID.
@@ -1210,5 +1350,6 @@
         </text>
     }
 </script>
+<div style="padding:0 24px;">@await Html.PartialAsync("_SiteFooter")</div>
 </body>
 </html>

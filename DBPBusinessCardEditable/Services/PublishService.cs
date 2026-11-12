@@ -107,11 +107,9 @@ public sealed class PublishService
             return "fa-solid fa-link";
         }
 
-        string ExtraHref(string val) =>
-            val.StartsWith("http")  ? val :
-            (val.StartsWith("+") || (val.Length > 0 && char.IsDigit(val[0]))) ? $"tel:{val}" : "#";
+        string ExtraHref(string val) => SafeLinks.ExtraHref(val);   // only http/https or tel: links
 
-        string ExtraTarget(string val) => val.StartsWith("http") ? "_blank" : "_self";
+        string ExtraTarget(string val) => SafeLinks.IsWebUrl(val) ? "_blank" : "_self";
 
         var sb = new StringBuilder();
 
@@ -262,11 +260,11 @@ public sealed class PublishService
         if (hasContact && hasLinks) sb.AppendLine(@"<div class=""divider""></div>");
 
         if (p.ShowGitHub    && !string.IsNullOrWhiteSpace(p.GitHub))
-            sb.AppendLine($@"<a class=""btn"" href=""{E(p.GitHub)}"" target=""_blank"" rel=""noopener"" onclick=""event.stopPropagation()""><i class=""fa-brands fa-github""></i> View GitHub</a>");
+            sb.AppendLine($@"<a class=""btn"" href=""{E(SafeLinks.SafeUrl(p.GitHub))}"" target=""_blank"" rel=""noopener"" onclick=""event.stopPropagation()""><i class=""fa-brands fa-github""></i> View GitHub</a>");
         if (p.ShowLinkedIn  && !string.IsNullOrWhiteSpace(p.LinkedIn))
-            sb.AppendLine($@"<a class=""btn"" href=""{E(p.LinkedIn)}"" target=""_blank"" rel=""noopener"" onclick=""event.stopPropagation()""><i class=""fa-brands fa-linkedin""></i> View LinkedIn</a>");
+            sb.AppendLine($@"<a class=""btn"" href=""{E(SafeLinks.SafeUrl(p.LinkedIn))}"" target=""_blank"" rel=""noopener"" onclick=""event.stopPropagation()""><i class=""fa-brands fa-linkedin""></i> View LinkedIn</a>");
         if (p.ShowPortfolio && !string.IsNullOrWhiteSpace(p.Portfolio))
-            sb.AppendLine($@"<a class=""btn"" href=""{E(p.Portfolio)}"" target=""_blank"" rel=""noopener"" onclick=""event.stopPropagation()""><i class=""fa-solid fa-globe""></i> Visit Website</a>");
+            sb.AppendLine($@"<a class=""btn"" href=""{E(SafeLinks.SafeUrl(p.Portfolio))}"" target=""_blank"" rel=""noopener"" onclick=""event.stopPropagation()""><i class=""fa-solid fa-globe""></i> Visit Website</a>");
 
         if (validExtra.Count > 0)
         {

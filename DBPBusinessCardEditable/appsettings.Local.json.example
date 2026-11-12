@@ -7,5 +7,9 @@
     "ServiceAccountUser": "CORP\\svc-bizcard-ro",
     "ServiceAccountPassword": "",
     "CacheSeconds": 300
+  },
+  "Security": {
+    "AdminKey": "",
+    "ApiKey": ""
   }
 }

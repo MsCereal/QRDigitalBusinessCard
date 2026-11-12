@@ -16,6 +16,12 @@ public class AdminReviewController(
     EmailService email,
     PublishService publisher) : Controller
 {
+    // Hidden anti-forgery field for the hand-built admin pages, so another website cannot
+    // submit these admin forms (e.g. "Delete All Cards") on the admin's behalf.
+    private string AfField => "<input type='hidden' name='__RequestVerificationToken' value='" +
+        System.Net.WebUtility.HtmlEncode(((Microsoft.AspNetCore.Antiforgery.IAntiforgery)HttpContext.RequestServices
+            .GetService(typeof(Microsoft.AspNetCore.Antiforgery.IAntiforgery))!).GetAndStoreTokens(HttpContext).RequestToken) + "'/>";
+
     private bool IsAdminSession() => HttpContext.Session.GetString("ADMIN") == "1";
 
     // GET /admin/review
@@ -31,7 +37,7 @@ public class AdminReviewController(
 
     // POST /admin/review/approve
     [HttpPost("/admin/review/approve")]
-    [IgnoreAntiforgeryToken]
+    [ValidateAntiForgeryToken]
     public IActionResult Approve([FromForm] string sam)
     {
         if (!IsAdminSession()) return Redirect("/admin");
@@ -58,7 +64,7 @@ public class AdminReviewController(
 
     // POST /admin/review/reject
     [HttpPost("/admin/review/reject")]
-    [IgnoreAntiforgeryToken]
+    [ValidateAntiForgeryToken]
     public IActionResult Reject([FromForm] string sam, [FromForm] string? reason)
     {
         if (!IsAdminSession()) return Redirect("/admin");
@@ -118,14 +124,14 @@ public class AdminReviewController(
                     </td>
                     <td style='padding:14px 16px;color:#94a3b8;font-size:12px;'>{Esc(submittedAt)}</td>
                     <td style='padding:14px 16px;'>
-                        <form method='post' action='/admin/review/approve' style='display:inline;margin-right:6px;'>
+                        <form method='post' action='/admin/review/approve' style='display:inline;margin-right:6px;'>{AfField}
                             <input type='hidden' name='sam' value='{Esc(p.SamAccountName)}'/>
                             <button type='submit' style='background:#059669;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;'
-                                    onclick=""return confirm('Approve changes for {Esc(p.Name)}?')"">
+                                    onclick=""return confirm('Approve changes for ' + {JsAttr(p.Name)} + '?')"">
                                 ✅ Approve
                             </button>
                         </form>
-                        <button onclick=""openReject('{Esc(p.SamAccountName)}','{Esc(p.Name)}')"" 
+                        <button onclick=""openReject({JsAttr(p.SamAccountName)},{JsAttr(p.Name)})"" 
                                 style='background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;'>
                             ❌ Reject
                         </button>
@@ -194,7 +200,7 @@ public class AdminReviewController(
 </head>
 <body>
 <div class='topbar'>
-  <form method='post' action='/admin/logout-home' style='display:flex;align-items:center;background:none;border:none;padding:0;cursor:pointer;'>
+  <form method='post' action='/admin/logout-home' style='display:flex;align-items:center;background:none;border:none;padding:0;cursor:pointer;'>{AfField}
     <button type='submit' style='background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center;'>
       <img src='/dbp-logo.png' alt='DBP' style='width:40px;height:40px;object-fit:contain;'/>
     </button>
@@ -236,7 +242,7 @@ public class AdminReviewController(
   <div class='modal'>
     <h3>❌ Reject Changes</h3>
     <p id='rejectModalName'>Rejecting changes for this employee.</p>
-    <form method='post' id='rejectForm'>
+    <form method='post' id='rejectForm'>{AfField}
       <input type='hidden' name='sam' id='rejectSam'/>
       <label style='font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:6px;'>Reason (optional — will be emailed to the employee):</label>
       <textarea name='reason' placeholder='e.g. Title does not match HR records. Please contact HR to update your AD profile.'></textarea>
@@ -276,4 +282,8 @@ function closeReject() {{
     }
 
     private static string Esc(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
+
+    // A value placed inside an onclick="..." script: JSON string (quotes and < > & ' escaped), then HTML-encoded.
+    // HtmlEncode alone is not enough there: the browser decodes &#39; back to ' before running the script.
+    private static string JsAttr(string? s) => Esc(System.Text.Json.JsonSerializer.Serialize(s ?? ""));
 }

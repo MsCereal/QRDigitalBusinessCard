@@ -10,6 +10,9 @@
                        (Model.ShowPortfolio && !string.IsNullOrWhiteSpace(Model.Portfolio));
     var validExtra   = Model.ExtraInfo?.Where(e => !string.IsNullOrWhiteSpace(e.Label) && !string.IsNullOrWhiteSpace(e.Value)).ToList()
                        ?? new System.Collections.Generic.List<DBPBusinessCardEditable.Models.ExtraInfoItem>();
+    // Only http/https become clickable web links ("javascript:" etc. can never run)
+    Func<string?, string> SafeUrl   = DBPBusinessCardEditable.Services.SafeLinks.SafeUrl;
+    Func<string?, string> ExtraHref = DBPBusinessCardEditable.Services.SafeLinks.ExtraHref;
     Func<string, string> extraIcon = (label) => {
         var l = label.ToLower();
         if (l.Contains("facebook"))  return "fa-brands fa-facebook";
@@ -80,10 +83,10 @@
         html.dark .dbp-badge { background: #111; border-color: #333; }
         body { font-family:Arial,sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:30px 16px 60px; position:relative; overflow-y:auto; overflow-x:hidden; }
         .page-bg { position:fixed; inset:0; z-index:0; background:linear-gradient(155deg,rgba(10,25,70,0.95) 0%,rgba(30,64,175,0.90) 45%,rgba(15,40,100,0.97) 100%),url('/bg.png') center/cover no-repeat; transition:background 0.5s; overflow:hidden; }
-        .dark-toggle { position:relative; z-index:2; align-self:flex-end; margin-bottom:8px; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:rgba(255,255,255,0.75); border-radius:20px; padding:5px 12px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.15s; }
+        .dark-toggle { position:relative; z-index:2; align-self:flex-end; margin-bottom:8px; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:#ffffff; border-radius:20px; padding:5px 12px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.15s; }
         .dark-toggle:hover { background:rgba(255,255,255,0.22); }
         html.dark .dark-toggle { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.1); }
-        .flip-hint { position:relative; z-index:1; color:rgba(255,255,255,0.35); font-size:11px; letter-spacing:1px; margin-bottom:12px; cursor:pointer; user-select:none; text-align:center; }
+        .flip-hint { position:relative; z-index:1; color:#ffffff; font-size:13px; font-weight:600; letter-spacing:1px; margin-bottom:12px; cursor:pointer; user-select:none; text-align:center; }
         .flip-hint i { margin-right:4px; }
         .card-scene { position:relative; z-index:1; width:100%; max-width:380px; perspective:1000px; }
         .card-flipper { width:100%; position:relative; transform-style:preserve-3d; transition:transform 0.55s cubic-bezier(0.4,0.2,0.2,1); }
@@ -187,18 +190,18 @@
     { <a class="btn" href="/download-contact/@Model.CardToken" onclick="event.stopPropagation()"><i class="fa-solid fa-address-card"></i> Save Contact</a> }
     @if (hasContact && hasLinks) { <div class="divider"></div> }
     @if (Model.ShowGitHub && !string.IsNullOrWhiteSpace(Model.GitHub))
-    { <a class="btn" href="@Model.GitHub" target="_blank" rel="noopener" onclick="event.stopPropagation()"><i class="fa-brands fa-github"></i> View GitHub</a> }
+    { <a class="btn" href="@SafeUrl(Model.GitHub)" target="_blank" rel="noopener" onclick="event.stopPropagation()"><i class="fa-brands fa-github"></i> View GitHub</a> }
     @if (Model.ShowLinkedIn && !string.IsNullOrWhiteSpace(Model.LinkedIn))
-    { <a class="btn" href="@Model.LinkedIn" target="_blank" rel="noopener" onclick="event.stopPropagation()"><i class="fa-brands fa-linkedin"></i> View LinkedIn</a> }
+    { <a class="btn" href="@SafeUrl(Model.LinkedIn)" target="_blank" rel="noopener" onclick="event.stopPropagation()"><i class="fa-brands fa-linkedin"></i> View LinkedIn</a> }
     @if (Model.ShowPortfolio && !string.IsNullOrWhiteSpace(Model.Portfolio))
-    { <a class="btn" href="@Model.Portfolio" target="_blank" rel="noopener" onclick="event.stopPropagation()"><i class="fa-solid fa-globe"></i> Visit Website</a> }
+    { <a class="btn" href="@SafeUrl(Model.Portfolio)" target="_blank" rel="noopener" onclick="event.stopPropagation()"><i class="fa-solid fa-globe"></i> Visit Website</a> }
     @if (validExtra.Count > 0)
     {
         @if (hasContact || hasLinks) { <div class="divider"></div> }
         @foreach (var extra in validExtra)
         {
             var dt = !string.IsNullOrWhiteSpace(extra.Title) ? extra.Title : extra.Label;
-            <a class="btn" href="@(extra.Value.StartsWith("http") ? extra.Value : (extra.Value.StartsWith("+") || (extra.Value.Length > 0 && char.IsDigit(extra.Value[0])) ? "tel:" + extra.Value : "#"))" target="@(extra.Value.StartsWith("http") ? "_blank" : "_self")" rel="noopener" onclick="event.stopPropagation()">
+            <a class="btn" href="@ExtraHref(extra.Value)" target="@(SafeUrl(extra.Value) != "#" ? "_blank" : "_self")" rel="noopener" onclick="event.stopPropagation()">
                 <i class="@extraIcon(extra.Label)"></i> @dt
             </a>
         }
@@ -227,7 +230,7 @@
 
     @if (Model.ShowName && !string.IsNullOrWhiteSpace(Model.Name))
     {
-        <div class="info-row" onclick="copyInfo(this,'@Model.Name')">
+        <div class="info-row" data-copy="@Model.Name" onclick="copyInfo(this, this.getAttribute('data-copy'))">
             <div class="info-icon"><i class="fa-solid fa-user"></i></div>
             <div class="info-content"><p class="info-label">Full Name</p><p class="info-value">@Model.Name</p></div>
             <i class="fa-solid fa-check copy-tick"></i>
@@ -235,7 +238,7 @@
     }
     @if (hasNickname)
     {
-        <div class="info-row" onclick="copyInfo(this,'@Model.PreferredName')">
+        <div class="info-row" data-copy="@Model.PreferredName" onclick="copyInfo(this, this.getAttribute('data-copy'))">
             <div class="info-icon"><i class="fa-solid fa-id-badge"></i></div>
             <div class="info-content"><p class="info-label">Nickname</p><p class="info-value">@Model.PreferredName</p></div>
             <i class="fa-solid fa-check copy-tick"></i>
@@ -243,7 +246,7 @@
     }
     @if (Model.ShowTitle && !string.IsNullOrWhiteSpace(Model.Title))
     {
-        <div class="info-row" onclick="copyInfo(this,'@Model.Title')">
+        <div class="info-row" data-copy="@Model.Title" onclick="copyInfo(this, this.getAttribute('data-copy'))">
             <div class="info-icon"><i class="fa-solid fa-briefcase"></i></div>
             <div class="info-content"><p class="info-label">Job Title</p><p class="info-value">@Model.Title</p></div>
             <i class="fa-solid fa-check copy-tick"></i>
@@ -251,7 +254,7 @@
     }
     @if (Model.ShowDepartment && !string.IsNullOrWhiteSpace(Model.Department))
     {
-        <div class="info-row" onclick="copyInfo(this,'@Model.Department')">
+        <div class="info-row" data-copy="@Model.Department" onclick="copyInfo(this, this.getAttribute('data-copy'))">
             <div class="info-icon"><i class="fa-solid fa-building"></i></div>
             <div class="info-content"><p class="info-label">Department</p><p class="info-value">@Model.Department</p></div>
             <i class="fa-solid fa-check copy-tick"></i>
@@ -259,7 +262,7 @@
     }
     @if (Model.ShowOrg && !string.IsNullOrWhiteSpace(Model.Org))
     {
-        <div class="info-row" onclick="copyInfo(this,'@Model.Org')">
+        <div class="info-row" data-copy="@Model.Org" onclick="copyInfo(this, this.getAttribute('data-copy'))">
             <div class="info-icon"><i class="fa-solid fa-building-columns"></i></div>
             <div class="info-content"><p class="info-label">Organization</p><p class="info-value">@Model.Org</p></div>
             <i class="fa-solid fa-check copy-tick"></i>
@@ -267,7 +270,7 @@
     }
     @if (Model.ShowPhone && !string.IsNullOrWhiteSpace(Model.Phone))
     {
-        <div class="info-row" onclick="copyInfo(this,'@Model.Phone')">
+        <div class="info-row" data-copy="@Model.Phone" onclick="copyInfo(this, this.getAttribute('data-copy'))">
             <div class="info-icon"><i class="fa-solid fa-phone"></i></div>
             <div class="info-content"><p class="info-label">Phone</p><p class="info-value">@Model.Phone</p></div>
             <i class="fa-solid fa-check copy-tick"></i>
@@ -283,7 +286,7 @@
     }
     @if (Model.ShowEmail && !string.IsNullOrWhiteSpace(Model.Email))
     {
-        <div class="info-row" onclick="copyInfo(this,'@Model.Email')">
+        <div class="info-row" data-copy="@Model.Email" onclick="copyInfo(this, this.getAttribute('data-copy'))">
             <div class="info-icon"><i class="fa-solid fa-envelope"></i></div>
             <div class="info-content"><p class="info-label">Email</p><p class="info-value">@Model.Email</p></div>
             <i class="fa-solid fa-check copy-tick"></i>
@@ -291,7 +294,7 @@
     }
     @if (Model.ShowGitHub && !string.IsNullOrWhiteSpace(Model.GitHub))
     {
-        <div class="info-row" onclick="copyInfo(this,'@Model.GitHub')">
+        <div class="info-row" data-copy="@Model.GitHub" onclick="copyInfo(this, this.getAttribute('data-copy'))">
             <div class="info-icon"><i class="fa-brands fa-github"></i></div>
             <div class="info-content"><p class="info-label">GitHub</p><p class="info-value">@Model.GitHub</p></div>
             <i class="fa-solid fa-check copy-tick"></i>
@@ -299,7 +302,7 @@
     }
     @if (Model.ShowLinkedIn && !string.IsNullOrWhiteSpace(Model.LinkedIn))
     {
-        <div class="info-row" onclick="copyInfo(this,'@Model.LinkedIn')">
+        <div class="info-row" data-copy="@Model.LinkedIn" onclick="copyInfo(this, this.getAttribute('data-copy'))">
             <div class="info-icon"><i class="fa-brands fa-linkedin"></i></div>
             <div class="info-content"><p class="info-label">LinkedIn</p><p class="info-value">@Model.LinkedIn</p></div>
             <i class="fa-solid fa-check copy-tick"></i>
@@ -307,7 +310,7 @@
     }
     @if (Model.ShowPortfolio && !string.IsNullOrWhiteSpace(Model.Portfolio))
     {
-        <div class="info-row" onclick="copyInfo(this,'@Model.Portfolio')">
+        <div class="info-row" data-copy="@Model.Portfolio" onclick="copyInfo(this, this.getAttribute('data-copy'))">
             <div class="info-icon"><i class="fa-solid fa-globe"></i></div>
             <div class="info-content"><p class="info-label">Website</p><p class="info-value">@Model.Portfolio</p></div>
             <i class="fa-solid fa-check copy-tick"></i>
@@ -316,7 +319,7 @@
     @foreach (var extra in validExtra)
     {
         var dtb = !string.IsNullOrWhiteSpace(extra.Title) ? extra.Title : extra.Label;
-        <div class="info-row" onclick="copyInfo(this,'@extra.Value')">
+        <div class="info-row" data-copy="@extra.Value" onclick="copyInfo(this, this.getAttribute('data-copy'))">
             <div class="info-icon"><i class="@extraIcon(extra.Label)"></i></div>
             <div class="info-content"><p class="info-label">@dtb</p><p class="info-value">@extra.Value</p></div>
             <i class="fa-solid fa-check copy-tick"></i>
@@ -346,7 +349,7 @@
         <button onclick="closeQrModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:18px;color:#94a3b8;cursor:pointer;line-height:1;"><i class="fa-solid fa-xmark"></i></button>
         <p style="font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#2563eb;margin-bottom:12px;"><i class="fa-solid fa-qrcode" style="margin-right:5px;"></i>My QR Code</p>
         <div style="background:#fff;border-radius:12px;padding:10px;display:inline-block;border:2px solid #e5e7eb;">
-            <img src="/QR/Generate/@Model.EmpId" alt="QR Code" style="width:200px;height:200px;display:block;" />
+            <img src="/QR/Generate/@Model.CardToken" alt="QR Code" style="width:200px;height:200px;display:block;" />
         </div>
         <p style="font-size:11px;color:#94a3b8;margin-top:10px;">Scan to open this card</p>
         <button onclick="downloadQr()" style="margin-top:12px;width:100%;padding:10px;border:1.5px solid #2563eb;border-radius:9px;background:#fff;color:#2563eb;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;">
@@ -356,8 +359,8 @@
 </div>
 
 <script>
-    var cardUrl  = '@Html.Raw(cardUrl)';
-    var cardName = '@Html.Raw(hasNickname ? Model.PreferredName : Model.Name)';
+    var cardUrl  = @Json.Serialize(cardUrl);
+    var cardName = @Json.Serialize(hasNickname ? Model.PreferredName : Model.Name);
 
     // Dark mode (task 9)
     function toggleDark() {
@@ -431,13 +434,13 @@
         document.getElementById('qrModal').style.display = 'none';
     }
     function downloadQr() {
-        fetch('/QR/Generate/@Model.EmpId')
+        fetch('/QR/Generate/@Model.CardToken')
             .then(function(r) { return r.blob(); })
             .then(function(blob) {
                 var url = URL.createObjectURL(blob);
                 var a = document.createElement('a');
                 a.href = url;
-                a.download = '@(Model.ShowName ? Model.Name.Replace(" ","-") : Model.EmpId)-QR.png';
+                a.download = @Json.Serialize((Model.ShowName ? Model.Name.Replace(" ", "-") : Model.EmpId) + "-QR.png");
                 document.body.appendChild(a); a.click();
                 document.body.removeChild(a); URL.revokeObjectURL(url);
             });

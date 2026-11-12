@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 namespace DBPBusinessCardEditable
 {
@@ -85,15 +85,9 @@ namespace DBPBusinessCardEditable
                     Type        = SecuritySchemeType.ApiKey,
                     Description = "API key for protected endpoints."
                 });
-                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
                 {
-                    {
-                        new OpenApiSecurityScheme
-                        {
-                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "ApiKey" }
-                        },
-                        new string[] {}
-                    }
+                    [new OpenApiSecuritySchemeReference("ApiKey", document)] = new List<string>()
                 });
             });
         }
@@ -151,13 +145,17 @@ namespace DBPBusinessCardEditable
             app.UseAuthentication();
             app.UseAuthorization();
 
-            app.UseSwagger();
-            app.UseSwaggerUI(c =>
+            // API documentation pages: only on a developer machine, not on the live server
+            if (env.IsDevelopment())
             {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "DBP Business Card API v1");
-                c.RoutePrefix   = "swagger";
-                c.DocumentTitle = "DBP API";
-            });
+                app.UseSwagger();
+                app.UseSwaggerUI(c =>
+                {
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "DBP Business Card API v1");
+                    c.RoutePrefix   = "swagger";
+                    c.DocumentTitle = "DBP API";
+                });
+            }
 
             app.UseEndpoints(endpoints =>
             {

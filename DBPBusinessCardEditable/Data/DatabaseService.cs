@@ -248,6 +248,10 @@ public sealed class DatabaseService
             profile.ViewHistory = prev.ViewHistory;
             profile.TotalViews  = prev.TotalViews;
             profile.AuditLog    = prev.AuditLog;
+            // Published state only changes through Publish (MarkPublished), never through a normal save.
+            // (The edit form does not send it, so without this every save quietly un-published the card.)
+            profile.IsPublished = prev.IsPublished;
+            profile.PublishedAt = prev.PublishedAt;
             AppendAudit(profile, "Updated", BuildDiff(prev, profile));
         }
 
