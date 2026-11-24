@@ -18,6 +18,7 @@
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
     <PackageReference Include="Dapper" Version="2.1.89" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Negotiate" Version="8.0.34" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.2" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.34" />
     <PackageReference Include="QRCoder" Version="1.8.1" />
     <PackageReference Include="SkiaSharp" Version="4.155.0" />

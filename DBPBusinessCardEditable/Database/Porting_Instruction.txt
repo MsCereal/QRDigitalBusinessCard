@@ -1,0 +1,130 @@
+DBP DIGITAL BUSINESS CARD (eCard) - PORTING INSTRUCTION (UAT)
+=============================================================
+
+Package contents
+  eCard\                     the application (copy this folder to the web server)
+  SCRIPT\Database_eCard.sql  database setup script
+  Porting_Instruction.txt    this file
+
+Order: the DATABASE ADMIN steps (1-4) must be done BEFORE the website is started (step 15).
+
+
+A. BACKUP
+   Not applicable at this time (first installation).
+
+
+B. PORTING
+
+   DATABASE ADMIN  -  Database server 172.16.64.20
+   ------------------------------------------------
+   1.  Check the script inside the SCRIPT folder: Database_eCard.sql.
+       It only creates what is missing (database DBP_eCard, table dbo.cards, 3 indexes).
+       It does not delete or change any data and does not touch other databases.
+
+   2.  Open SQL Server Management Studio and connect to 172.16.64.20
+       with a DBA login.
+
+   3.  File > Open > Database_eCard.sql, then click Execute (F5).
+       The script switches to DBP_eCard by itself.
+       Expected result at the bottom:
+           database = DBP_eCard
+           collation = ..._CI_AS   (must be CI = case-insensitive)
+           columns_in_cards = 47
+           cards_rows = 0
+       The Messages tab shows "Created ..." (first run) or "already exists" (re-run).
+
+   4.  Create the application login (Step 4 inside the script, commented out):
+       a login with read/write on DBP_eCard ONLY (db_datareader + db_datawriter).
+       Do NOT use 'sa' for the application.
+       Give the login name and password to the System Admin in a secure way
+       (not by email or chat).
+
+
+   SYSTEM ADMIN  -  Web server 172.16.64.19
+   ----------------------------------------
+   Requirement (one time): the ".NET 8 Hosting Bundle" (ASP.NET Core Runtime 8.0 Hosting Bundle)
+   must be installed on the server. Check: "AspNetCoreModuleV2" appears in IIS Manager > server > Modules.
+   If it was just installed, restart IIS (run "iisreset" as administrator).
+
+   5.  Remote desktop to UAT 172.16.64.19.
+
+   6.  Copy the folder "eCard" from the package to:
+           C:\inetpub\wwwroot\eCard
+       (On a redeploy: stop the eCard website first, replace the files, but KEEP the
+        existing web.config on the server, because it holds the passwords.)
+
+   7.  Create the folder for published cards (outside the app folder):
+           C:\inetpub\eCard_published
+
+   8.  IIS Manager > Application Pools > Add Application Pool:
+           Name:                     eCard
+           .NET CLR version:         No Managed Code
+           Managed pipeline mode:    Integrated
+       Then select eCard > Advanced Settings:
+           Load User Profile:        True   (keeps users signed in after a restart)
+
+   9.  Give the app pool permission (right-click folder > Properties > Security > Edit > Add,
+       type  IIS AppPool\eCard  > Check Names > OK):
+           C:\inetpub\wwwroot\eCard        Read & execute
+           C:\inetpub\eCard_published      Modify
+
+   10. IIS Manager > Sites > Add Website:
+           Site name:          eCard
+           Application pool:   eCard
+           Physical path:      C:\inetpub\wwwroot\eCard
+           Binding:            http, IP 172.16.64.19 (or All Unassigned), port 80
+                               (use another port, e.g. 8080, if port 80 is already used)
+       IMPORTANT: it must be its own WEBSITE, not an application/virtual folder
+       under "Default Web Site" (the app's links start at the site root).
+       Untick "Start Website immediately" (start it at step 15).
+
+   11. Select the eCard site > Authentication:
+           Anonymous Authentication   Enabled
+           Windows Authentication     Enabled
+       (Windows Authentication is used for employee sign-in. If it is missing, install it:
+        Server Manager > Add Roles and Features > Web Server > Security > Windows Authentication.)
+
+   12. Edit C:\inetpub\wwwroot\eCard\web.config (Notepad as administrator):
+           ConnectionStrings__CardsDb : replace both CHANGE_ME with the login name and
+                                        password from the Database Admin (step 4).
+           Publishing__PublicBaseUrl  : http://<site address>/published
+                                        (e.g. http://172.16.64.19/published, or with the port
+                                        if not 80: http://172.16.64.19:8080/published)
+           ADMIN_KEY                  : leave empty to keep the admin console off,
+                                        or set a strong password for the admin console.
+       Save the file.
+
+   13. (Only if the site has a name, e.g. ecard-uat.dbp.local) ask the network team for
+       the DNS record pointing to 172.16.64.19.
+
+   14. Firewall: allow inbound TCP on the site port (80 or the chosen port) on 172.16.64.19.
+       The web server must reach the database server on TCP 1433 (172.16.64.20).
+
+   15. IIS Manager > Sites > eCard > Start (right side, "Manage Website > Start").
+
+   16. Smoke test (on the server, then from a user PC):
+           http://<site address>/         Welcome page appears
+           http://<site address>/login    Sign In page appears
+           Sign in with a Windows account, create a card, Save  -> QR page appears
+           Open the card link and scan the QR with a phone
+       If the site shows an error (HTTP 500.30 / 500.x): see "If something goes wrong".
+
+
+C. BACKOUT
+   Not applicable at this time (first installation).
+   To remove: IIS Manager > Sites > eCard > Stop, then remove the site, app pool and
+   the folders C:\inetpub\wwwroot\eCard and C:\inetpub\eCard_published.
+   Database: DBP_eCard can be dropped by the DBA (it is used only by this app).
+
+
+IF SOMETHING GOES WRONG
+   - HTTP 500.19            The .NET 8 Hosting Bundle is not installed (or IIS was not restarted).
+   - HTTP 500.30 / 500.x    App failed to start. Usually the database connection:
+                            check the CHANGE_ME values in web.config, that the login works,
+                            and that 172.16.64.20:1433 is reachable from the web server.
+                            To see the reason: in web.config set stdoutLogEnabled="true",
+                            create the folder C:\inetpub\wwwroot\eCard\logs, restart the site,
+                            read the newest file in that folder, then set it back to "false".
+                            Also check Windows Event Viewer > Windows Logs > Application.
+   - Sign-in fails          Windows Authentication not enabled on the site (step 11).
+   - "Publish failed"       The app pool has no Modify permission on C:\inetpub\eCard_published.

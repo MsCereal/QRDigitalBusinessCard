@@ -1,25 +1,48 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Data.Common;
 using Dapper;
 using DBPBusinessCardEditable.Models;
+using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
 
 namespace DBPBusinessCardEditable.Data;
 
 /// <summary>
-/// SQLite-backed persistence for card profiles.
-/// Replaces the flat cards.json approach.
+/// Persistence for card profiles. Two storage options, same table and columns:
+///  - SQL Server (UAT/Production): used when the connection string "ConnectionStrings:CardsDb"
+///    is set (environment variable ConnectionStrings__CardsDb). Never put it in appsettings/git.
+///  - SQLite (developer machine): a local file, used when no connection string is set.
 /// </summary>
 public sealed class DatabaseService
 {
     private readonly string _connectionString;
+    private readonly bool   _sqlServer;
     private readonly ILogger<DatabaseService> _logger;
 
     private static readonly JsonSerializerOptions _json = new() { WriteIndented = false };
 
+    // Case-insensitive match. SQLite needs it on each comparison; the SQL Server database
+    // (DBP_eCard) is created with a case-insensitive collation, so nothing is needed there.
+    private string Ci => _sqlServer ? "" : " COLLATE NOCASE";
+
     public DatabaseService(IConfiguration config, ILogger<DatabaseService> logger)
     {
         _logger = logger;
+
+        var sqlServerCs = config.GetConnectionString("CardsDb");
+        if (!string.IsNullOrWhiteSpace(sqlServerCs))
+        {
+            _sqlServer        = true;
+            _connectionString = sqlServerCs;
+            // Log where we connect, never the password
+            var b = new SqlConnectionStringBuilder(sqlServerCs);
+            _logger.LogInformation("Card database: SQL Server {Server}, database {Database}", b.DataSource, b.InitialCatalog);
+            InitSchemaSqlServer();
+            MigrateFromJson(config);
+            return;
+        }
+
         var configured = config["Database:Path"];
         string dbPath;
         if (!string.IsNullOrWhiteSpace(configured))
@@ -118,6 +141,97 @@ public sealed class DatabaseService
         }
     }
 
+    /// <summary>
+    /// SQL Server: same table and columns as SQLite. Dates are kept as ISO-8601 text (as in SQLite),
+    /// true/false as 0/1, lists as JSON text, so the rest of this class works unchanged.
+    /// Safe to run every start: only creates what is missing.
+    /// </summary>
+    private void InitSchemaSqlServer()
+    {
+        try
+        {
+            using var conn = Open();
+            conn.Execute(@"
+IF OBJECT_ID(N'dbo.cards', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.cards (
+        sam_account_name     NVARCHAR(256) NOT NULL CONSTRAINT PK_cards PRIMARY KEY,
+        emp_id               NVARCHAR(64)  NOT NULL CONSTRAINT DF_cards_emp_id        DEFAULT N'',
+        card_token           NVARCHAR(64)  NOT NULL CONSTRAINT DF_cards_card_token    DEFAULT N'',
+        card_pin             NVARCHAR(200) NOT NULL CONSTRAINT DF_cards_card_pin      DEFAULT N'',
+        pin_is_hashed        INT           NOT NULL CONSTRAINT DF_cards_pin_is_hashed DEFAULT 0,
+        is_active            INT           NOT NULL CONSTRAINT DF_cards_is_active     DEFAULT 1,
+        is_published         INT           NOT NULL CONSTRAINT DF_cards_is_published  DEFAULT 0,
+        published_at         NVARCHAR(40)  NULL,
+        name                 NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_name                DEFAULT N'',
+        show_name            INT           NOT NULL CONSTRAINT DF_cards_show_name           DEFAULT 1,
+        preferred_name       NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_preferred_name      DEFAULT N'',
+        show_preferred_name  INT           NOT NULL CONSTRAINT DF_cards_show_preferred_name DEFAULT 0,
+        photo                NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_photo               DEFAULT N'',
+        show_photo           INT           NOT NULL CONSTRAINT DF_cards_show_photo          DEFAULT 1,
+        title                NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_title               DEFAULT N'',
+        show_title           INT           NOT NULL CONSTRAINT DF_cards_show_title          DEFAULT 1,
+        department           NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_department          DEFAULT N'',
+        show_department      INT           NOT NULL CONSTRAINT DF_cards_show_department     DEFAULT 1,
+        org                  NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_org DEFAULT N'Development Bank of the Philippines',
+        show_org             INT           NOT NULL CONSTRAINT DF_cards_show_org            DEFAULT 1,
+        office               NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_office              DEFAULT N'',
+        show_office          INT           NOT NULL CONSTRAINT DF_cards_show_office         DEFAULT 1,
+        phone                NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_phone               DEFAULT N'',
+        show_phone           INT           NOT NULL CONSTRAINT DF_cards_show_phone          DEFAULT 1,
+        email                NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_email               DEFAULT N'',
+        show_email           INT           NOT NULL CONSTRAINT DF_cards_show_email          DEFAULT 1,
+        github               NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_github              DEFAULT N'',
+        show_github          INT           NOT NULL CONSTRAINT DF_cards_show_github         DEFAULT 1,
+        linkedin             NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_linkedin            DEFAULT N'',
+        show_linkedin        INT           NOT NULL CONSTRAINT DF_cards_show_linkedin       DEFAULT 1,
+        portfolio            NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_portfolio           DEFAULT N'',
+        show_portfolio       INT           NOT NULL CONSTRAINT DF_cards_show_portfolio      DEFAULT 1,
+        extra_info           NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_extra_info          DEFAULT N'[]',
+        view_history         NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_view_history        DEFAULT N'[]',
+        total_views          INT           NOT NULL CONSTRAINT DF_cards_total_views         DEFAULT 0,
+        audit_log            NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_audit_log           DEFAULT N'[]',
+        created_at           NVARCHAR(40)  NOT NULL,
+        updated_at           NVARCHAR(40)  NOT NULL,
+        pending_title        NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_pending_title       DEFAULT N'',
+        pending_department   NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_pending_department  DEFAULT N'',
+        pending_org          NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_pending_org         DEFAULT N'',
+        pending_office       NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_pending_office      DEFAULT N'',
+        pending_status       NVARCHAR(20)  NOT NULL CONSTRAINT DF_cards_pending_status      DEFAULT N'none',
+        pending_submitted_at NVARCHAR(40)  NULL,
+        pending_submitted_by NVARCHAR(256) NOT NULL CONSTRAINT DF_cards_pending_submitted_by DEFAULT N'',
+        view_log             NVARCHAR(MAX) NOT NULL CONSTRAINT DF_cards_view_log            DEFAULT N'[]',
+        card_expires_at      NVARCHAR(40)  NULL
+    );
+END;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_cards_emp_id' AND object_id = OBJECT_ID(N'dbo.cards'))
+    CREATE UNIQUE INDEX idx_cards_emp_id ON dbo.cards(emp_id) WHERE emp_id <> N'';
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_cards_token' AND object_id = OBJECT_ID(N'dbo.cards'))
+    CREATE UNIQUE INDEX idx_cards_token ON dbo.cards(card_token) WHERE card_token <> N'';
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_cards_pending' AND object_id = OBJECT_ID(N'dbo.cards'))
+    CREATE INDEX idx_cards_pending ON dbo.cards(pending_status);
+");
+            _logger.LogInformation("SQL Server schema initialised successfully.");
+        }
+        catch (Exception ex)
+        {
+            // The DBA normally creates the table with SCRIPT\Database_eCard.sql and gives the app a
+            // read/write-only login, which may not be allowed to create tables or indexes.
+            // That is fine as long as the table is there and the app can use it.
+            try
+            {
+                using var check = Open();
+                check.Execute("SELECT TOP (0) sam_account_name FROM dbo.cards;");
+                _logger.LogWarning(ex, "SQL Server: could not check/create the schema (the login may not have permission to create tables). The dbo.cards table exists and is readable, so the app will continue.");
+            }
+            catch
+            {
+                _logger.LogError(ex, "SQL Server schema initialisation failed and dbo.cards is not usable. Check the CardsDb connection string, that DBP_eCard exists, and that Database_eCard.sql was run.");
+                throw;
+            }
+        }
+    }
+
     // ── Migration from cards.json ─────────────────────────────────────────────
 
     private void MigrateFromJson(IConfiguration config)
@@ -141,14 +255,14 @@ public sealed class DatabaseService
 
                 using var conn = Open();
                 var exists = conn.ExecuteScalar<int>(
-                    "SELECT COUNT(1) FROM cards WHERE sam_account_name = @Sam COLLATE NOCASE",
+                    $"SELECT COUNT(1) FROM cards WHERE sam_account_name = @Sam{Ci}",
                     new { Sam = card.SamAccountName });
                 if (exists == 0) { Upsert(card, conn); migrated++; }
             }
 
             if (migrated > 0)
             {
-                _logger.LogInformation("Migrated {Count} card(s) from cards.json to SQLite.", migrated);
+                _logger.LogInformation("Migrated {Count} card(s) from cards.json to the card database.", migrated);
                 File.Move(jsonPath, jsonPath + ".migrated", overwrite: true);
             }
         }
@@ -160,8 +274,14 @@ public sealed class DatabaseService
 
     // ── Connection ────────────────────────────────────────────────────────────
 
-    private SqliteConnection Open()
+    private DbConnection Open()
     {
+        if (_sqlServer)
+        {
+            var sql = new SqlConnection(_connectionString);   // pooled by SqlClient
+            sql.Open();
+            return sql;
+        }
         var conn = new SqliteConnection(_connectionString);
         conn.Open();
         // WAL mode for better concurrent read performance
@@ -176,7 +296,7 @@ public sealed class DatabaseService
         if (string.IsNullOrWhiteSpace(sam)) return null;
         using var conn = Open();
         var row = conn.QueryFirstOrDefault<CardRow>(
-            "SELECT * FROM cards WHERE sam_account_name = @Sam COLLATE NOCASE",
+            $"SELECT * FROM cards WHERE sam_account_name = @Sam{Ci}",
             new { Sam = sam.Trim() });
         return row is null ? null : Map(row);
     }
@@ -186,7 +306,7 @@ public sealed class DatabaseService
         if (string.IsNullOrWhiteSpace(empId)) return null;
         using var conn = Open();
         var row = conn.QueryFirstOrDefault<CardRow>(
-            "SELECT * FROM cards WHERE emp_id = @EmpId COLLATE NOCASE",
+            $"SELECT * FROM cards WHERE emp_id = @EmpId{Ci}",
             new { EmpId = empId.Trim() });
         return row is null ? null : Map(row);
     }
@@ -218,7 +338,7 @@ public sealed class DatabaseService
     {
         using var conn = Open();
         return conn.ExecuteScalar<int>(
-            "SELECT COUNT(1) FROM cards WHERE emp_id = @EmpId COLLATE NOCASE AND sam_account_name != @Exc COLLATE NOCASE",
+            $"SELECT COUNT(1) FROM cards WHERE emp_id = @EmpId{Ci} AND sam_account_name != @Exc{Ci}",
             new { EmpId = empId.Trim(), Exc = excludeSam }) > 0;
     }
 
@@ -229,7 +349,7 @@ public sealed class DatabaseService
 
         using var conn = Open();
         var existing = conn.QueryFirstOrDefault<CardRow>(
-            "SELECT * FROM cards WHERE sam_account_name = @Sam COLLATE NOCASE",
+            $"SELECT * FROM cards WHERE sam_account_name = @Sam{Ci}",
             new { Sam = profile.SamAccountName });
 
         bool isNew = existing is null;
@@ -316,7 +436,7 @@ public sealed class DatabaseService
     {
         using var conn = Open();
         conn.Execute(
-            "UPDATE cards SET is_published=@P, published_at=@At, updated_at=@Now WHERE sam_account_name=@Sam COLLATE NOCASE",
+            $"UPDATE cards SET is_published=@P, published_at=@At, updated_at=@Now WHERE sam_account_name=@Sam{Ci}",
             new
             {
                 P   = published ? 1 : 0,
@@ -360,7 +480,7 @@ public sealed class DatabaseService
         // Upsert the blanked card, then explicitly clear pending columns
         // (Upsert does not include pending columns in ON CONFLICT UPDATE)
         Upsert(fresh, conn);
-        conn.Execute(@"
+        conn.Execute($@"
             UPDATE cards SET
                 pending_title        = '',
                 pending_department   = '',
@@ -369,14 +489,14 @@ public sealed class DatabaseService
                 pending_status       = 'none',
                 pending_submitted_at = NULL,
                 pending_submitted_by = ''
-            WHERE sam_account_name = @Sam COLLATE NOCASE",
+            WHERE sam_account_name = @Sam{Ci}",
             new { Sam = sam.Trim() });
     }
 
     public void Delete(string sam)
     {
         using var conn = Open();
-        conn.Execute("DELETE FROM cards WHERE sam_account_name=@Sam COLLATE NOCASE",
+        conn.Execute($"DELETE FROM cards WHERE sam_account_name=@Sam{Ci}",
             new { Sam = sam.Trim() });
     }
 
@@ -394,7 +514,7 @@ public sealed class DatabaseService
         string pendingOrg, string pendingOffice)
     {
         using var conn = Open();
-        conn.Execute(@"
+        conn.Execute($@"
             UPDATE cards SET
                 pending_title       = @T,
                 pending_department  = @D,
@@ -404,7 +524,7 @@ public sealed class DatabaseService
                 pending_submitted_at = @At,
                 pending_submitted_by = @Sam,
                 updated_at          = @Now
-            WHERE sam_account_name = @Sam COLLATE NOCASE",
+            WHERE sam_account_name = @Sam{Ci}",
             new
             {
                 T   = pendingTitle      ?? "",
@@ -422,7 +542,7 @@ public sealed class DatabaseService
         var card = GetBySam(sam);
         if (card is null || card.PendingStatus != "pending") return;
         using var conn = Open();
-        conn.Execute(@"
+        conn.Execute($@"
             UPDATE cards SET
                 title               = pending_title,
                 department          = pending_department,
@@ -435,7 +555,7 @@ public sealed class DatabaseService
                 pending_status      = 'approved',
                 pending_submitted_at = NULL,
                 updated_at          = @Now
-            WHERE sam_account_name = @Sam COLLATE NOCASE",
+            WHERE sam_account_name = @Sam{Ci}",
             new { Now = DateTime.UtcNow.ToString("o"), Sam = sam.Trim() });
 
         // Also re-publish the card if it was published
@@ -449,7 +569,7 @@ public sealed class DatabaseService
     public void RejectPending(string sam, string reason = "")
     {
         using var conn = Open();
-        conn.Execute(@"
+        conn.Execute($@"
             UPDATE cards SET
                 pending_title       = '',
                 pending_department  = '',
@@ -458,7 +578,7 @@ public sealed class DatabaseService
                 pending_status      = 'rejected',
                 pending_submitted_at = NULL,
                 updated_at          = @Now
-            WHERE sam_account_name = @Sam COLLATE NOCASE",
+            WHERE sam_account_name = @Sam{Ci}",
             new { Now = DateTime.UtcNow.ToString("o"), Sam = sam.Trim() });
     }
 
@@ -487,7 +607,7 @@ public sealed class DatabaseService
         if (card.CardPin != pin) return false;
         using var conn = Open();
         conn.Execute(
-            "UPDATE cards SET card_pin=@H, pin_is_hashed=1 WHERE sam_account_name=@Sam COLLATE NOCASE",
+            $"UPDATE cards SET card_pin=@H, pin_is_hashed=1 WHERE sam_account_name=@Sam{Ci}",
             new { H = HashPin(pin), Sam = sam.Trim() });
         return true;
     }
@@ -506,9 +626,55 @@ public sealed class DatabaseService
 
     // ── Internal helpers ──────────────────────────────────────────────────────
 
-    private void Upsert(CardProfile p, SqliteConnection conn)
+    // SQL Server: update the card if it exists, otherwise insert it, in one transaction.
+    // Same columns as the SQLite statement below (pending_*, view_log, card_token, created_at
+    // are not changed on update).
+    private const string UpsertSqlServer = @"
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+UPDATE dbo.cards WITH (UPDLOCK, SERIALIZABLE) SET
+    emp_id=@EmpId, card_pin=@CardPin, pin_is_hashed=@PinIsHashed,
+    is_active=@IsActive, is_published=@IsPublished,
+    published_at=@PublishedAt, card_expires_at=@CardExpiresAt,
+    name=@Name, show_name=@ShowName,
+    preferred_name=@PreferredName, show_preferred_name=@ShowPreferredName,
+    photo=@Photo, show_photo=@ShowPhoto,
+    title=@Title, show_title=@ShowTitle,
+    department=@Department, show_department=@ShowDepartment,
+    org=@Org, show_org=@ShowOrg,
+    office=@Office, show_office=@ShowOffice,
+    phone=@Phone, show_phone=@ShowPhone,
+    email=@Email, show_email=@ShowEmail,
+    github=@GitHub, show_github=@ShowGitHub,
+    linkedin=@LinkedIn, show_linkedin=@ShowLinkedIn,
+    portfolio=@Portfolio, show_portfolio=@ShowPortfolio,
+    extra_info=@ExtraInfo, view_history=@ViewHistory,
+    total_views=@TotalViews, audit_log=@AuditLog,
+    updated_at=@UpdatedAt
+WHERE sam_account_name = @SamAccountName;
+IF @@ROWCOUNT = 0
+    INSERT INTO dbo.cards (
+        sam_account_name,emp_id,card_token,card_pin,pin_is_hashed,
+        is_active,is_published,published_at,card_expires_at,
+        name,show_name,preferred_name,show_preferred_name,photo,show_photo,
+        title,show_title,department,show_department,org,show_org,office,show_office,
+        phone,show_phone,email,show_email,
+        github,show_github,linkedin,show_linkedin,portfolio,show_portfolio,
+        extra_info,view_history,total_views,audit_log,created_at,updated_at
+    ) VALUES (
+        @SamAccountName,@EmpId,@CardToken,@CardPin,@PinIsHashed,
+        @IsActive,@IsPublished,@PublishedAt,@CardExpiresAt,
+        @Name,@ShowName,@PreferredName,@ShowPreferredName,@Photo,@ShowPhoto,
+        @Title,@ShowTitle,@Department,@ShowDepartment,@Org,@ShowOrg,@Office,@ShowOffice,
+        @Phone,@ShowPhone,@Email,@ShowEmail,
+        @GitHub,@ShowGitHub,@LinkedIn,@ShowLinkedIn,@Portfolio,@ShowPortfolio,
+        @ExtraInfo,@ViewHistory,@TotalViews,@AuditLog,@CreatedAt,@UpdatedAt
+    );
+COMMIT TRANSACTION;";
+
+    private void Upsert(CardProfile p, DbConnection conn)
     {
-        conn.Execute(@"
+        conn.Execute(_sqlServer ? UpsertSqlServer : @"
             INSERT INTO cards (
                 sam_account_name,emp_id,card_token,card_pin,pin_is_hashed,
                 is_active,is_published,published_at,card_expires_at,

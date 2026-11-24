@@ -45,7 +45,7 @@ namespace DBPBusinessCardEditable
             services.AddMemoryCache();
             services.AddSingleton<LdapDirectoryService>();
 
-            // ── SQLite data layer ────────────────────────────────────────────
+            // ── Card database: SQL Server if ConnectionStrings:CardsDb is set, otherwise SQLite ──
             services.AddSingleton<DatabaseService>();
             services.AddSingleton<SqliteCardService>();
 
