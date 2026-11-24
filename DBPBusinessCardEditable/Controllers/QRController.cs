@@ -45,6 +45,32 @@ namespace DBPBusinessCardEditable.Controllers
             return BuildQrImage(url);
         }
 
+        // GET /QR/Contact/{token} — "Save Contact" QR: the contact details are stored INSIDE the QR,
+        // so scanning it saves the contact on the phone even without internet or access to this site.
+        // Token only (never an Employee ID). Inactive/expired cards get no contact QR.
+        [HttpGet("/QR/Contact/{token}")]
+        public IActionResult Contact(string token)
+        {
+            var profile = _service.GetByToken(token);
+            if (profile is null || string.IsNullOrWhiteSpace(profile.CardToken) || !profile.IsEffectivelyActive)
+                return NotFound();
+
+            var cardUrl = $"{Request.Scheme}://{Request.Host}/card/{profile.CardToken}";
+            var vcard   = DBPBusinessCardEditable.Services.VCard.Build(profile, cardUrl);
+
+            // Medium error correction and no logo: contact QR codes hold much more text than a link,
+            // so this keeps the squares as large as possible for easy scanning.
+            var gen  = new QRCodeGenerator();
+            // UTF-8 with the ECI marker, so phones read letters like ñ correctly ("Peña", not "PeÃ±a")
+            var data = gen.CreateQrCode(vcard, QRCodeGenerator.ECCLevel.M, forceUtf8: true, utf8BOM: false,
+                                        eciMode: QRCodeGenerator.EciMode.Utf8);
+            var png  = new PngByteQRCode(data).GetGraphic(16);
+
+            // Always build from the latest card details
+            Response.Headers["Cache-Control"] = "no-store";
+            return File(png, "image/png");
+        }
+
         private IActionResult BuildQrImage(string url)
         {
             try

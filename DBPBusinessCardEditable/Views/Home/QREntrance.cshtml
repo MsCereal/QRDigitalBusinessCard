@@ -3,6 +3,9 @@
     Layout = null;
     string empId   = Model.EmpId;
     string cardUrl = $"{Context.Request.Scheme}://{Context.Request.Host}/card/{Model.CardToken}";
+    // The QR shown by default is "Save Contact" (contact details inside the QR, saves instantly).
+    // Inactive/expired cards have no contact QR, so they show the normal card QR instead.
+    bool contactDefault = Model.IsEffectivelyActive;
     var stats = Model.ViewHistory != null ? Model.ViewHistory : new System.Collections.Generic.List<DBPBusinessCardEditable.Models.DailyView>();
     int todayViews = stats.Where(v => v.Date == DateTime.UtcNow.ToString("yyyy-MM-dd")).Sum(v => v.Count);
     int weekViews  = stats.Where(v => string.Compare(v.Date, DateTime.UtcNow.AddDays(-7).ToString("yyyy-MM-dd"), StringComparison.Ordinal) >= 0).Sum(v => v.Count);
@@ -46,11 +49,26 @@
         .profile-photo-placeholder img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .profile-name { color: #fff; font-size: 20px; font-weight: 800; margin: 10px 0 5px; text-shadow: 0 1px 6px rgba(0,0,0,0.4); }
         .profile-title-pill { display: inline-block; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); color: #f1f5f9; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px; backdrop-filter: blur(4px); }
-        .qr-card { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); border-radius: 20px; padding: 16px; margin-bottom: 0; backdrop-filter: blur(8px); }
+        .qr-card { position: relative; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); border-radius: 20px; padding: 16px; margin-bottom: 0; backdrop-filter: blur(8px); }
         .qr-frame { background: #fff; border-radius: 14px; padding: 12px; display: inline-block; box-shadow: 0 8px 30px rgba(0,0,0,0.4); margin-bottom: 10px; animation: pulse 3s ease-in-out infinite; }
         @@keyframes pulse { 0%,100% { box-shadow: 0 8px 30px rgba(0,0,0,0.4); } 50% { box-shadow: 0 8px 30px rgba(0,0,0,0.4), 0 0 0 6px rgba(37,99,235,0.2); } }
         .qr-frame img { display: block; width: 200px; height: 200px; border-radius: 4px; }
         .qr-instruction { color: #ffffff; font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+        /* Open Card / Save Contact switch */
+        .qr-type { display: none; gap: 6px; background: rgba(0,0,0,0.22); border: 1px solid rgba(255,255,255,0.14); border-radius: 12px; padding: 4px; margin-bottom: 12px; }
+        .qr-layout.show-advanced .qr-type { display: flex; }
+        /* Hidden by default: Open Card QR switch, Open Card, Copy Link, Share via, Publish. Shown by the hidden button. */
+        .qr-layout:not(.show-advanced) .advanced { display: none !important; }
+        /* Normal view: ONE centred box - the QR on top, Edit / Stats / Reset joined underneath */
+        .qr-layout:not(.show-advanced) { grid-template-columns: minmax(0, 1fr) !important; max-width: 440px; margin: 0 auto; gap: 0 !important; }
+        .qr-layout:not(.show-advanced) .qr-col-left .qr-card { border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; padding-bottom: 12px; }
+        .qr-layout:not(.show-advanced) .qr-col-right { border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; padding: 0 16px 16px !important; gap: 10px; }
+        /* Hidden button (top-right corner of the QR box): click to show/hide the hidden parts */
+        .qr-secret { position: absolute; top: 0; right: 0; width: 40px; height: 40px; padding: 0; border: 0; background: transparent; opacity: 0; cursor: default; z-index: 2; }
+        .qr-type-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 10px; border: 0; border-radius: 9px; background: transparent; color: #ffffff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+        .qr-type-btn:hover, .qr-type-btn:focus-visible { background: rgba(255,255,255,0.16); outline: none; }
+        .qr-type-btn.active { background: #ffffff; color: #0b1e4a; }
+        .qr-note { color: #bfdbfe; font-size: 12px; margin-top: 6px; display: none; }
         .qr-sub { color: #ffffff; font-size: 13px; }
         .divider-row { display: flex; align-items: center; gap: 10px; margin: 0 auto 14px; max-width: 480px; }
         .divider-row::before, .divider-row::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.12); }
@@ -161,6 +179,8 @@
             .qr-card { padding: 12px 16px; }
             .qr-frame { padding: 10px; margin-bottom: 8px; }
             .qr-frame img { width: 172px; height: 172px; }
+            .qr-type { margin-bottom: 8px; padding: 3px; }
+            .qr-type-btn { padding: 7px 8px; }
             .btn-save-qr { margin-top: 10px !important; padding: 9px 16px; }
             .qr-col-right { padding: 12px 16px; gap: 10px; }
             .btn { padding: 10px 14px; }
@@ -199,15 +219,29 @@
         { <p class="profile-title-pill">@Model.Title</p> }
     </div>
 
-  <div class="qr-layout">
+  <div class="qr-layout" id="qrLayout">
    <div class="qr-col-left">
     <!-- QR Code -->
     <div class="qr-card">
+        @* Two kinds of QR:
+           Open Card    = a link to the online card (always up to date, counts views, shows the photo)
+           Save Contact = the contact details are inside the QR itself, so a phone saves the
+                          contact even with no internet / no access to this site *@
+        <button type="button" class="qr-secret" id="qrSecret" tabindex="-1" aria-hidden="true" onclick="toggleQrTypes()"></button>
+        <div class="qr-type advanced" role="tablist" aria-label="QR code type">
+            <button type="button" class="qr-type-btn@(contactDefault ? "" : " active")" id="qrTypeCard" role="tab" aria-selected="@(contactDefault ? "false" : "true")" onclick="setQrType('card')">
+                <i class="fa-solid fa-id-card"></i> Open Card
+            </button>
+            <button type="button" class="qr-type-btn@(contactDefault ? " active" : "")" id="qrTypeContact" role="tab" aria-selected="@(contactDefault ? "true" : "false")" onclick="setQrType('contact')">
+                <i class="fa-solid fa-address-book"></i> Save Contact
+            </button>
+        </div>
         <div class="qr-frame" id="qrFrameWrap">
-            <img src="/QR/Generate/@Model.CardToken" alt="QR Code" id="qrImg" crossorigin="anonymous" />
+            <img src="@(contactDefault ? "/QR/Contact/" : "/QR/Generate/")@Model.CardToken" alt="@(contactDefault ? "Save Contact QR Code" : "QR Code")" id="qrImg" crossorigin="anonymous" />
         </div>
         <p class="qr-instruction"><i class="fa-solid fa-camera" style="margin-right:6px;opacity:0.7;"></i>Scan with your phone camera</p>
-        <p class="qr-sub">to view @Model.Name's digital business card</p>
+        <p class="qr-sub" id="qrSub">@(contactDefault ? $"to save {Model.Name} to the phone's contacts" : $"to view {Model.Name}'s digital business card")</p>
+        <p class="qr-note" id="qrNote"@(contactDefault ? Html.Raw(" style=\"display:block\"") : Html.Raw(""))>Works without internet. If you change your details later, save and share this QR again.</p>
         <button class="btn-save-qr" id="saveQrBtn" onclick="saveQr()" style="margin-top:14px;width:100%;">
             <i class="fa-solid fa-download"></i> Save QR Code
         </button>
@@ -216,7 +250,7 @@
    </div><!-- /.qr-col-left -->
    <div class="qr-col-right">
     <!-- Access -->
-    <div class="link-section">
+    <div class="link-section advanced">
         <div class="divider-row"><span>OR ACCESS DIRECTLY</span></div>
         <div class="access-row">
             <a href="@cardUrl" class="btn btn-open" target="_blank" rel="noopener">
@@ -229,7 +263,7 @@
     </div>
 
     <!-- Share via -->
-    <div class="share-section">
+    <div class="share-section advanced">
         <div class="divider-row"><span>SHARE VIA</span></div>
         <div class="share-row">
             <a id="teamsBtn" href="#" class="btn btn-teams" target="_blank" rel="noopener">
@@ -241,7 +275,7 @@
         </div>
     </div>
 
-    <div class="section-line" role="separator"></div>
+    <div class="section-line advanced" role="separator"></div>
     <!-- Pending approval banner — shown only when employee has changes awaiting review -->
     @if (Model.HasPending)
     {
@@ -326,7 +360,7 @@
     </div>
 
     <!-- Publish button -->
-    <div style="margin-top:10px;">
+    <div class="advanced" style="margin-top:10px;">
         @if (Model.IsActive && !string.IsNullOrWhiteSpace(Model.Name))
         {
             <form method="post" action="/me/publish">
@@ -601,21 +635,45 @@
         });
     }
 
+    // Which QR is shown: 'card' (link to the online card) or 'contact' (contact details inside the QR)
+    var qrDefault = @Json.Serialize(contactDefault ? "contact" : "card");
+    var qrType = qrDefault;
+    function qrSrc() { return (qrType === 'contact' ? '/QR/Contact/' : '/QR/Generate/') + qrToken; }
+    function setQrType(type) {
+        qrType = type === 'contact' ? 'contact' : 'card';
+        var isContact = qrType === 'contact';
+        document.getElementById('qrImg').src = qrSrc();
+        document.getElementById('qrImg').alt = isContact ? 'Save Contact QR Code' : 'QR Code';
+        document.getElementById('qrSub').textContent = isContact
+            ? "to save " + empName + " to the phone's contacts"
+            : "to view " + empName + "'s digital business card";
+        document.getElementById('qrNote').style.display = isContact ? 'block' : 'none';
+        var c = document.getElementById('qrTypeCard'), k = document.getElementById('qrTypeContact');
+        c.classList.toggle('active', !isContact); c.setAttribute('aria-selected', String(!isContact));
+        k.classList.toggle('active', isContact);  k.setAttribute('aria-selected', String(isContact));
+    }
+
+    // Hidden button: shows/hides the hidden parts (QR switch, Open Card, Copy Link, Share via, Publish). Hiding them goes back to the default QR.
+    function toggleQrTypes() {
+        var shown = document.getElementById('qrLayout').classList.toggle('show-advanced');
+        if (!shown) setQrType(qrDefault);
+    }
+
     function saveQr() {
         var btn = document.getElementById('saveQrBtn');
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
         btn.disabled = true;
-        fetch('/QR/Generate/' + qrToken)
-            .then(function(r) { return r.blob(); })
+        fetch(qrSrc())
+            .then(function(r) { if (!r.ok) throw new Error('QR'); return r.blob(); })
             .then(function(blob) {
                 var url = URL.createObjectURL(blob);
                 var a = document.createElement('a');
-                a.href = url; a.download = empName.replace(/\s+/g,'-') + '-QR.png';
+                a.href = url; a.download = empName.replace(/\s+/g,'-') + (qrType === 'contact' ? '-Contact-QR.png' : '-QR.png');
                 document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
                 btn.innerHTML = '<i class="fa-solid fa-check"></i> QR Saved!';
                 setTimeout(function() { btn.innerHTML = '<i class="fa-solid fa-download"></i> Save QR Code'; btn.disabled = false; }, 2500);
             })
-            .catch(function() { window.open('/QR/Generate/' + qrToken, '_blank'); btn.innerHTML = '<i class="fa-solid fa-download"></i> Save QR Code'; btn.disabled = false; });
+            .catch(function() { window.open(qrSrc(), '_blank'); btn.innerHTML = '<i class="fa-solid fa-download"></i> Save QR Code'; btn.disabled = false; });
     }
 </script>
 @await Html.PartialAsync("_SiteFooter")

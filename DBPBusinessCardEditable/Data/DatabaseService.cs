@@ -48,6 +48,9 @@ public sealed class DatabaseService
         if (!string.IsNullOrWhiteSpace(configured))
         {
             dbPath = configured;
+            // SQLite creates the file, but not its folder (e.g. C:\inetpub\eCard_data)
+            var folder = Path.GetDirectoryName(Path.GetFullPath(dbPath));
+            if (!string.IsNullOrEmpty(folder)) Directory.CreateDirectory(folder);
         }
         else
         {
